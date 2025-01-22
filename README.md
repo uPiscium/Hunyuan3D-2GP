@@ -10,13 +10,7 @@ pinned: false
 short_description: Text-to-3D and Image-to-3D Generation
 ---
 
-[中文阅读](README_zh_cn.md)
 
-<p align="center">
-  <img src="./assets/images/teaser.jpg">
-
-
-</p>
 
 # Hunyuan3D-2GP: 3D Generation for the GPU Poor
 *GPU Poor version by **DeepBeepMeep**. This great video generator can now run smoothly with less than 6 GB of VRAM.*
@@ -103,10 +97,6 @@ You can choose between 5 profiles depending on your hardware:
 - VerylowRAM_LowVRAM  (5): at least 24 GB of RAM and 6 GB of VRAM 
 
 Usualy the lower the profile the faster the generation.
-
-<p align="center">
-  <img src="assets/images/system.jpg">
-</p>
 
 ## Other GPU Poor Applications
 - HuanyuanVideoGP: https://github.com/deepbeepmeep/HunyuanVideoGP\
