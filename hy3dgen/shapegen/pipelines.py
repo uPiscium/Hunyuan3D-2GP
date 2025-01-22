@@ -140,7 +140,7 @@ class Hunyuan3DDiTPipeline:
         cls,
         ckpt_path,
         config_path,
-        device='cuda',
+        device='cpu',
         dtype=torch.float16,
         use_safetensors=None,
         **kwargs,
@@ -168,17 +168,20 @@ class Hunyuan3DDiTPipeline:
                     ckpt[model_name] = {}
                 ckpt[model_name][new_key] = value
         else:
-            ckpt = torch.load(ckpt_path, map_location='cpu')
+            ckpt = torch.load(ckpt_path, map_location='cpu', weights_only= True)
         # load model
-        model = instantiate_from_config(config['model'])
-        model.load_state_dict(ckpt['model'])
-        vae = instantiate_from_config(config['vae'])
-        vae.load_state_dict(ckpt['vae'])
-        conditioner = instantiate_from_config(config['conditioner'])
+        from accelerate import init_empty_weights
+        with init_empty_weights():
+            model = instantiate_from_config(config['model'])
+            vae = instantiate_from_config(config['vae'])
+            conditioner = instantiate_from_config(config['conditioner'])
+            image_processor = instantiate_from_config(config['image_processor'])
+            scheduler = instantiate_from_config(config['scheduler'])
+        
+        model.load_state_dict(ckpt['model'], assign = True)
+        vae.load_state_dict(ckpt['vae'], assign = True)
         if 'conditioner' in ckpt:
-            conditioner.load_state_dict(ckpt['conditioner'])
-        image_processor = instantiate_from_config(config['image_processor'])
-        scheduler = instantiate_from_config(config['scheduler'])
+            conditioner.load_state_dict(ckpt['conditioner'], assign = True)
 
         model_kwargs = dict(
             vae=vae,

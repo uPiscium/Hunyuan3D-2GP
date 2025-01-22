@@ -9,7 +9,7 @@ import torch
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
+from mmgp import offload
 
 def get_example_img_list():
     print('Loading example img list ...')
@@ -71,6 +71,7 @@ def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
     with open(output_html_path, 'w') as f:
         f.write(template_html.replace('<model-viewer>', obj_html))
 
+    output_html_path = output_html_path.replace(SAVE_DIR + '/', '')
     iframe_tag = f'<iframe src="/static/{output_html_path}" height="{height}" width="100%" frameborder="0"></iframe>'
     print(f'Find html {output_html_path}, {os.path.exists(output_html_path)}')
 
@@ -89,6 +90,7 @@ def _gen_shape(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
+    return_dict = None
 ):
     if caption: print('prompt is', caption)
     save_folder = gen_save_folder()
@@ -99,7 +101,9 @@ def _gen_shape(
     if image is None:
         start_time = time.time()
         try:
-            image = t2i_worker(caption)
+            image = t2i_worker(caption, seed)
+            if return_dict != None:
+                return_dict["image"] = image
         except Exception as e:
             raise gr.Error(f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`.")
         time_meta['text2image'] = time.time() - start_time
@@ -149,6 +153,7 @@ def generation_all(
     octree_resolution=256,
     check_box_rembg=False
 ):
+    return_dict = {}
     mesh, save_folder = _gen_shape(
         caption,
         image,
@@ -156,8 +161,11 @@ def generation_all(
         guidance_scale=guidance_scale,
         seed=seed,
         octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg
+        check_box_rembg=check_box_rembg,
+        return_dict= return_dict
     )
+    image = return_dict.get("image", image)
+
     path = export_mesh(mesh, save_folder, textured=False)
     model_viewer_html = build_model_viewer_html(save_folder, height=596, width=700)
 
@@ -203,33 +211,23 @@ def shape_generation(
 
 def build_app():
     title_html = """
-    <div style="font-size: 2em; font-weight: bold; text-align: center; margin-bottom: 5px">
 
-    Hunyuan3D-2: Scaling Diffusion Models for High Resolution Textured 3D Assets Generation
-    </div>
+    <div align=center><H1>Hunyuan3D-2<SUP>GP</SUP></div>
+    <BR>
+    <div align="center"><B>Original model by Tencent, GPU Poor version by DeepBeepMeep. Now this great 3D video generator can run smoothly with a 6 GB rig.</B>
+    </DIV>
+    <BR>
     <div align="center">
-    Tencent Hunyuan3D Team
-    </div>
-    <div align="center">
+    Tencent Hunyuan3D Team -
       <a href="https://github.com/tencent/Hunyuan3D-2">Github Page</a> &ensp; 
       <a href="http://3d-models.hunyuan.tencent.com">Homepage</a> &ensp;
       <a href="#">Technical Report</a> &ensp;
       <a href="https://huggingface.co/Tencent/Hunyuan3D-2"> Models</a> &ensp;
     </div>
     """
-    css = """
-    .json-output {
-        height: 578px;
-    }
-    .json-output .json-holder {
-        height: 538px;
-        overflow-y: scroll;
-    }
-    """
 
-    with gr.Blocks(theme=gr.themes.Base(), css=css, title='Hunyuan-3D-2.0') as demo:
-        if not gr.__version__.startswith('4'):
-            gr.HTML(title_html)
+    with gr.Blocks(theme=gr.themes.Base(), title='Hunyuan-3D-2.0') as demo:
+        gr.HTML(title_html)
 
         with gr.Row():
             with gr.Column(scale=2):
@@ -339,8 +337,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8080)
-    parser.add_argument('--cache-path', type=str, default='./gradio_cache')
+    parser.add_argument('--cache-path', type=str, default='gradio_cache')
     parser.add_argument('--enable_t23d', action='store_true')
+    parser.add_argument('--profile', type=str, default="3")
+    parser.add_argument('--verbose', type=str, default="1")
+
     args = parser.parse_args()
 
     SAVE_DIR = args.cache_path
@@ -359,7 +360,7 @@ if __name__ == '__main__':
     """
     example_is = get_example_img_list()
     example_ts = get_example_txt_list()
-
+    torch.set_default_device("cpu")
     try:
         from hy3dgen.texgen import Hunyuan3DPaintPipeline
 
@@ -384,9 +385,26 @@ if __name__ == '__main__':
 
     rmbg_worker = BackgroundRemover()
     i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2')
+
     floater_remove_worker = FloaterRemover()
     degenerate_face_remove_worker = DegenerateFaceRemover()
     face_reduce_worker = FaceReducer()
+  
+    profile = int(args.profile) 
+    kwargs = {}
+    pipe = offload.extract_models("i23d_worker", i23d_worker)
+    pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
+    if t2i_worker != None:
+        pipe.update(  offload.extract_models( "t2i_worker", t2i_worker))
+        
+
+    if profile < 5:
+        kwargs["pinnedMemory"] = "i23d_worker/model"
+    if profile !=1 and profile !=3:
+        kwargs["budgets"] = { "*" : 2200 }
+
+    offload.profile(pipe, profile_no = profile, verboseLevel = int(args.verbose), **kwargs)
+
 
     # https://discuss.huggingface.co/t/how-to-serve-an-html-file/33921/2
     # create a FastAPI app

@@ -1,18 +1,36 @@
+---
+title: Hunyuan3D-2.0
+emoji: 🌍
+colorFrom: purple
+colorTo: red
+sdk: gradio
+sdk_version: 4.44.1
+app_file: hg_app.py
+pinned: false
+short_description: Text-to-3D and Image-to-3D Generation
+---
+
 [中文阅读](README_zh_cn.md)
 
-<p align="center"> 
+<p align="center">
   <img src="./assets/images/teaser.jpg">
 
 
 </p>
 
+# Hunyuan3D-2GP: 3D Generation for the GPU Poor
+*GPU Poor version by **DeepBeepMeep**. This great video generator can now run smoothly with less than 6 GB of VRAM.*
+<BR>
+
+This is another integration of the *mmgp 3.1* module that allows easy to setup advanced and fast offloading.\
+https://github.com/deepbeepmeep/mmgp
+
 <div align="center">
-  <a href=https://3d.hunyuan.tencent.com target="_blank"><img src=https://img.shields.io/badge/Official%20Site-black.svg?logo=homepage height=22px></a>
+  <a href=https://3d.hunyuan.tencent.com target="_blank"><img src=https://img.shields.io/badge/Hunyuan3D-black.svg?logo=homepage height=22px></a>
   <a href=https://huggingface.co/spaces/tencent/Hunyuan3D-2  target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Demo-276cb4.svg height=22px></a>
   <a href=https://huggingface.co/tencent/Hunyuan3D-2 target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Models-d96902.svg height=22px></a>
   <a href=https://3d-models.hunyuan.tencent.com/ target="_blank"><img src= https://img.shields.io/badge/Page-bb8a2e.svg?logo=github height=22px></a>
-  <a href=https://discord.gg/GuaWYwzKbX target="_blank"><img src= https://img.shields.io/badge/Discord-white.svg?logo=discord height=22px></a>
-  <a href=https://github.com/Tencent/Hunyuan3D-2/blob/main/assets/report/Tencent_Hunyuan3D_2_0.pdf target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>
+<a href=https://discord.gg/GuaWYwzKbX target="_blank"><img src= https://img.shields.io/badge/Page-white.svg?logo=discord height=22px></a>
 </div>
 
 
@@ -28,10 +46,9 @@
 </p>
 
 ## 🔥 News
+- Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: low VRAM support and unlocked text to 3D generator
+- Jan 21, 2025: 💬 Release [Hunyuan3D 2.0](https://huggingface.co/spaces/tencent/Hunyuan3D-2). Please give it a try!
 
-- Jan 21, 2025: 💬 Enjoy exciting 3D generation on our website [Hunyuan3D Studio](https://3d.hunyuan.tencent.com)!
-- Jan 21, 2025: 💬 Release inference code and pretrained models of [Hunyuan3D 2.0](https://huggingface.co/tencent/Hunyuan3D-2).
-- Jan 21, 2025: 💬 Release Hunyuan3D 2.0. Please give it a try via [huggingface space](https://huggingface.co/spaces/tencent/Hunyuan3D-2) our [official site](https://3d.hunyuan.tencent.com)!
 
 ## **Abstract**
 
@@ -49,13 +66,61 @@ We systematically evaluate our models, showing that Hunyuan3D 2.0 outperforms pr
 including the open-source models and closed-source models in geometry details, condition alignment, texture quality, and
 e.t.c.
 
+## How to run the Gradio app
+1) Follow the installation instructions below
 
+2) Enter either one of the commande lines in bash session
+
+To run the image to 3E generator:
+```bash
+python gradio_app.py
+```
+
+To run the text to 3D generator:
+```bash
+python gradio_app.py --enable_t23d
+
+```
+
+By default the memory profile assumes 9 GB of VRAM *(profile 2)*. If you have less but at least 6 GB of VRAM add *--profile 5*
+
+To run the image to 3D generator with optimized memory management:
+```bash
+python gradio_app.py --profile 5
+
+```
+To run the text to 3D generator with optimized memory management:
+```bash
+python gradio_app.py --enable_t23d --profile 5
+
+```
+
+You can choose between 5 profiles depending on your hardware:
+- HighRAM_HighVRAM  (1): at least 48 GB of RAM and 12 GB of VRAM 
+- HighRAM_LowVRAM  (2): at least 48 GB of RAM and 6 GB of VRAM
+- LowRAM_HighVRAM  (3): at least 32 GB of RAM and 12 GB of VRAM
+- LowRAM_LowVRAM  (4): at least 32 GB of RAM and 6 GB of VRAM
+- VerylowRAM_LowVRAM  (5): at least 24 GB of RAM and 6 GB of VRAM 
+
+Usualy the lower the profile the faster the generation.
 
 <p align="center">
   <img src="assets/images/system.jpg">
 </p>
 
-## ☯️ **Hunyuan3D 2.0**
+## Other GPU Poor Applications
+- HuanyuanVideoGP: https://github.com/deepbeepmeep/HunyuanVideoGP\
+One of the best open source Text to Video generator
+
+- FluxFillGP: https://github.com/deepbeepmeep/FluxFillGP\
+One of the best inpainting / outpainting tools based on Flux that can run with less than 12 GB of VRAM.
+
+- Cosmos1GP: https://github.com/deepbeepmeep/Cosmos1GP\
+This application include two models: a text to world generator and a image / video to world (probably the best open source image to video generator).
+
+
+
+
 
 ### Architecture
 
@@ -83,8 +148,8 @@ and the condition following ability.
 
 Generation results of Hunyuan3D 2.0:
 <p align="left">
-  <img src="assets/images/e2e-1.gif"  height=250>
-  <img src="assets/images/e2e-2.gif"  height=250>
+  <img src="assets/images/e2e-1.gif"  height=300>
+  <img src="assets/images/e2e-2.gif"  height=300>
 </p>
 
 ### Pretrained Models
@@ -150,6 +215,7 @@ for handcrafted mesh**.
 You could also host a [Gradio](https://www.gradio.app/) App in your own computer via:
 
 ```bash
+pip3 install gradio==3.39.0
 python3 gradio_app.py
 ```
 
@@ -159,13 +225,12 @@ Don't forget to visit [Hunyuan3D](https://3d.hunyuan.tencent.com) for quick use,
 
 - [x] Inference Code
 - [x] Model Checkpoints
-- [x] Technical Report
 - [ ] ComfyUI
 - [ ] TensorRT Version
 
 ## 🔗 BibTeX
 
-If you found this repository helpful, please cite our reports:
+If you found this repository helpful, please cite our report:
 
 ```bibtex
 @misc{hunyuan3d22025tencent,
@@ -173,21 +238,13 @@ If you found this repository helpful, please cite our reports:
     author={Tencent Hunyuan3D Team},
     year={2025},
 }
-
-@misc{yang2024tencent,
-    title={Tencent Hunyuan3D-1.0: A Unified Framework for Text-to-3D and Image-to-3D Generation},
-    year={2024},
-    author={Tencent Hunyuan3D Team},
-    eprint={2411.02293},
-    archivePrefix={arXiv},
-    primaryClass={cs.CV}
-}
 ```
 
 ## Acknowledgements
 
 We would like to thank the contributors to
-the [DINOv2](https://github.com/facebookresearch/dinov2), [Stable Diffusion](https://github.com/Stability-AI/stablediffusion), [FLUX](https://github.com/black-forest-labs/flux), [diffusers](https://github.com/huggingface/diffusers), [HuggingFace](https://huggingface.co), [CraftsMan3D](https://github.com/wyysf-98/CraftsMan3D), and [Michelangelo](https://github.com/NeuralCarver/Michelangelo/tree/main) repositories, for their open research and exploration.
+the [DINOv2](https://github.com/facebookresearch/dinov2), [Stable Diffusion](https://github.com/Stability-AI/stablediffusion), [FLUX](https://github.com/black-forest-labs/flux), [diffusers](https://github.com/huggingface/diffusers)
+and [HuggingFace](https://huggingface.co) repositories, for their open research and exploration.
 
 ## Star History
 
