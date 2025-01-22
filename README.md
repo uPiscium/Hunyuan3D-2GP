@@ -142,9 +142,13 @@ You may follow the next steps to use Hunyuan3D 2.0 via code or the Gradio App.
 
 ### Install Requirements
 
-Please install Pytorch via the [official](https://pytorch.org/) site. Then install the other requirements via
-
+Please first make sure you have Python 3.10 installed, you may create a conda environnemet: 
 ```bash
+conda create -n Hunyuan3D-2GP python==3.10.9 
+```
+Then install the required libraries:
+```bash
+pip install torch==2.5.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cu124
 pip install -r requirements.txt
 # for texture
 cd hy3dgen/texgen/custom_rasterizer
