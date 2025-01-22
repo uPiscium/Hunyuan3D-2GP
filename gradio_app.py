@@ -373,6 +373,7 @@ if __name__ == '__main__':
         HAS_TEXTUREGEN = False
 
     HAS_T2I = False
+    t2i_worker = None
     if args.enable_t23d:
         from hy3dgen.text2image import HunyuanDiTPipeline
 
