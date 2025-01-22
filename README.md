@@ -1,16 +1,3 @@
----
-title: Hunyuan3D-2.0
-emoji: 🌍
-colorFrom: purple
-colorTo: red
-sdk: gradio
-sdk_version: 4.44.1
-app_file: hg_app.py
-pinned: false
-short_description: Text-to-3D and Image-to-3D Generation
----
-
-
 
 # Hunyuan3D-2GP: 3D Generation for the GPU Poor
 *GPU Poor version by **DeepBeepMeep**. This great video generator can now run smoothly with less than 6 GB of VRAM.*
