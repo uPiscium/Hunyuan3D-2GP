@@ -396,6 +396,8 @@ if __name__ == '__main__':
     kwargs = {}
     pipe = offload.extract_models("i23d_worker", i23d_worker)
     pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
+    # texgen_worker.models["delight_model"].pipeline.vae.use_slicing = True
+    texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
     if t2i_worker != None:
         pipe.update(  offload.extract_models( "t2i_worker", t2i_worker))
         
