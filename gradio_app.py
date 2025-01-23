@@ -72,13 +72,8 @@ def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
     with open(output_html_path, 'w', encoding='utf-8') as f:
         f.write(template_html.replace('<model-viewer>', obj_html))
 
-<<<<<<< HEAD
-    output_html_path = output_html_path.replace(SAVE_DIR + '/', '')
-    iframe_tag = f'<iframe src="/static/{output_html_path}" height="{height}" width="100%" frameborder="0"></iframe>'
-=======
     html_path = '/'.join(Path(output_html_path).parts[1:])
     iframe_tag = f'<iframe src="/static/{html_path}" height="{height}" width="100%" frameborder="0"></iframe>'
->>>>>>> windows
     print(f'Find html {output_html_path}, {os.path.exists(output_html_path)}')
 
     return f"""
@@ -366,16 +361,7 @@ if __name__ == '__main__':
     """
     example_is = get_example_img_list()
     example_ts = get_example_txt_list()
-<<<<<<< HEAD
     torch.set_default_device("cpu")
-=======
-    
-    from hy3dgen.texgen import Hunyuan3DPaintPipeline
-
-    texgen_worker = Hunyuan3DPaintPipeline.from_pretrained('tencent/Hunyuan3D-2')
-    HAS_TEXTUREGEN = True
-
->>>>>>> windows
     try:
         from hy3dgen.texgen import Hunyuan3DPaintPipeline
 
