@@ -27,6 +27,7 @@ https://github.com/deepbeepmeep/mmgp
 </p>
 
 ## 🔥 News
+- Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: added Windows support thanks to MrForExample fix
 - Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: low VRAM support and unlocked text to 3D generator
 - Jan 21, 2025: 💬 Release [Hunyuan3D 2.0](https://huggingface.co/spaces/tencent/Hunyuan3D-2). Please give it a try!
 
@@ -152,7 +153,8 @@ pip install torch==2.5.1 torchvision torchaudio --index-url https://download.pyt
 pip install -r requirements.txt
 # for texture
 cd hy3dgen/texgen/custom_rasterizer
-python3 setup.py install
+python setup.py install
+cd ../../..
 cd hy3dgen/texgen/differentiable_renderer
 bash compile_mesh_painter.sh
 ```
