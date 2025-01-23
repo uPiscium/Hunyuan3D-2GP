@@ -1,34 +1,47 @@
-# From: https://github.com/sdbds/Hunyuan3D-2-for-windows/blob/main/hy3dgen/texgen/differentiable_renderer/setup.py
-
 from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
-import sys
-import os
 import pybind11
-class BuildExt(build_ext):
-    def build_extensions(self):
-        if sys.platform == 'win32':
-            # Windows-specific compiler flags
-            for ext in self.extensions:
-                ext.extra_compile_args = ['/O2', '/Wall']
-        else:
-            # Linux/Mac flags
-            for ext in self.extensions:
-                ext.extra_compile_args = ['-O3', '-Wall', '-fPIC']
-        build_ext.build_extensions(self)
+import sys
+import platform
+
+# Common compile arguments
+common_compile_args = []
+
+if sys.platform == 'win32':
+    # Windows-specific compile arguments
+    extra_compile_args = [
+        '/O2',  # Optimization level
+        '/std:c++14',  # C++ standard (using C++14 for better compatibility)
+        '/EHsc',  # Exception handling model
+        '/MP',  # Multi-process compilation
+        '/DWIN32_LEAN_AND_MEAN',  # Exclude rarely-used Windows headers
+    ]
+    extra_link_args = []
+else:
+    # Linux/Unix compile arguments
+    extra_compile_args = [
+        '-O3',  # Optimization level
+        '-std=c++14',  # C++ standard
+        '-fPIC',  # Position independent code
+    ]
+    extra_link_args = ['-fPIC']
+
+ext_modules = [
+    Extension(
+        "mesh_processor",
+        ["mesh_processor.cpp"],
+        include_dirs=[
+            pybind11.get_include(),
+            pybind11.get_include(user=True)
+        ],
+        language='c++',
+        extra_compile_args=common_compile_args + extra_compile_args,
+        extra_link_args=extra_link_args,
+    ),
+]
 
 setup(
     name="mesh_processor",
-    ext_modules=[
-        Extension(
-            "mesh_processor",
-            ["mesh_processor.cpp"],
-            include_dirs=[
-                pybind11.get_include(),
-                pybind11.get_include(user=True)
-            ],
-            language='c++'
-        ),
-    ],
-    cmdclass={'build_ext': BuildExt},
+    ext_modules=ext_modules,
+    install_requires=['pybind11>=2.6.0'],
+    python_requires='>=3.6',
 )
