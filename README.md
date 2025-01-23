@@ -27,7 +27,7 @@ https://github.com/deepbeepmeep/mmgp
 </p>
 
 ## 🔥 News
-- Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: added Windows support thanks to MrForExample fix
+- Jan 23, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: added Windows support thanks to MrForExample and sdbds + omitted optimization that keeps under VRAM 6GB with profile 4 or 5
 - Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: low VRAM support and unlocked text to 3D generator
 - Jan 21, 2025: 💬 Release [Hunyuan3D 2.0](https://huggingface.co/spaces/tencent/Hunyuan3D-2). Please give it a try!
 
@@ -142,8 +142,13 @@ Generation results of Hunyuan3D 2.0:
 You may follow the next steps to use Hunyuan3D 2.0 via code or the Gradio App.
 
 ### Install Requirements
+To use the application on Windows (without WSL) you will need to install Microsoft Visual Studio 2022 or later. If you get an error during the execution of onr of the *python setup.py* below you will need to set the path to the C++ compiler by running the following script (once you have located the installation path of VS Studio which may differ):
+```bash
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd" -arch=x64 
+```
 
-Please first make sure you have Python 3.10 installed, you may create a conda environnemet: 
+
+In any case please make sure you have Python 3.10 installed, you may create a conda environnment: 
 ```bash
 conda create -n Hunyuan3D-2GP python==3.10.9 
 ```
@@ -156,7 +161,7 @@ cd hy3dgen/texgen/custom_rasterizer
 python setup.py install
 cd ../../..
 cd hy3dgen/texgen/differentiable_renderer
-bash compile_mesh_painter.sh
+python setup.py install
 ```
 
 ### API Usage
