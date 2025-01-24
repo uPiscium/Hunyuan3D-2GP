@@ -251,8 +251,8 @@ If you found this repository helpful, please cite our report:
     primaryClass={cs.CV}
 }
 
-@misc{yang2024tencent,
-    title={Tencent Hunyuan3D-1.0: A Unified Framework for Text-to-3D and Image-to-3D Generation},
+@misc{yang2024hunyuan3d,
+    title={Hunyuan3D 1.0: A Unified Framework for Text-to-3D and Image-to-3D Generation},
     author={Tencent Hunyuan3D Team},
     year={2024},
     eprint={2411.02293},
