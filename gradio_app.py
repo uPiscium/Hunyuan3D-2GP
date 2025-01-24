@@ -77,6 +77,10 @@ def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
     print(
         f'Find html file {output_html_path}, {os.path.exists(output_html_path)}, relative HTML path is /static/{rel_path}')
 
+    # html_path = '/'.join(Path(output_html_path).parts[1:])
+    # iframe_tag = f'<iframe src="/static/{html_path}" height="{height}" width="100%" frameborder="0"></iframe>'
+    # print(f'Find html {output_html_path}, {os.path.exists(output_html_path)}')
+
     return f"""
         <div style='height: {height}; width: 100%;'>
         {iframe_tag}
@@ -92,7 +96,6 @@ def _gen_shape(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    return_dict = None
 ):
     if caption: print('prompt is', caption)
     save_folder = gen_save_folder()
@@ -103,9 +106,7 @@ def _gen_shape(
     if image is None:
         start_time = time.time()
         try:
-            image = t2i_worker(caption, seed)
-            if return_dict != None:
-                return_dict["image"] = image
+            image = t2i_worker(caption)
         except Exception as e:
             raise gr.Error(f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`.")
         time_meta['text2image'] = time.time() - start_time
@@ -155,7 +156,6 @@ def generation_all(
     octree_resolution=256,
     check_box_rembg=False
 ):
-    return_dict = {}
     mesh, image, save_folder = _gen_shape(
         caption,
         image,
@@ -163,10 +163,8 @@ def generation_all(
         guidance_scale=guidance_scale,
         seed=seed,
         octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        return_dict= return_dict
+        check_box_rembg=check_box_rembg
     )
-    image = return_dict.get("image", image)
 
     path = export_mesh(mesh, save_folder, textured=False)
     model_viewer_html = build_model_viewer_html(save_folder, height=596, width=700)
@@ -387,7 +385,7 @@ if __name__ == '__main__':
     from hy3dgen.rembg import BackgroundRemover
 
     rmbg_worker = BackgroundRemover()
-    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2', device="cpu", use_safetensors = True)
+    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2', device="cpu", use_safetensors = True) 
 
     floater_remove_worker = FloaterRemover()
     degenerate_face_remove_worker = DegenerateFaceRemover()
