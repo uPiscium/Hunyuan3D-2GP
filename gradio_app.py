@@ -376,7 +376,6 @@ if __name__ == '__main__':
         HAS_TEXTUREGEN = False
 
     HAS_T2I = False
-    t2i_worker = None
     if args.enable_t23d:
         from hy3dgen.text2image import HunyuanDiTPipeline
 
@@ -397,9 +396,10 @@ if __name__ == '__main__':
     profile = int(args.profile) 
     kwargs = {}
     pipe = offload.extract_models("i23d_worker", i23d_worker)
-    pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
-    texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
-    if t2i_worker != None:
+    if HAS_TEXTUREGEN:
+        pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
+        texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
+    if HAS_T2I:
         pipe.update(  offload.extract_models( "t2i_worker", t2i_worker))
         
 
