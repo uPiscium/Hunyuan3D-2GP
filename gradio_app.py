@@ -26,7 +26,7 @@ def get_example_txt_list():
 
 def gen_save_folder(max_size=60):
     os.makedirs(SAVE_DIR, exist_ok=True)
-    exists = set(int(_) for _ in os.listdir(SAVE_DIR) if _.isdigit())    
+    exists = set(int(_) for _ in os.listdir(SAVE_DIR) if _.isdigit())
     cur_id = min(set(range(max_size)) - exists) if len(exists) < max_size else -1
     if os.path.exists(f"{SAVE_DIR}/{(cur_id + 1) % max_size}"):
         shutil.rmtree(f"{SAVE_DIR}/{(cur_id + 1) % max_size}")
@@ -72,9 +72,14 @@ def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
     with open(output_html_path, 'w', encoding='utf-8') as f:
         f.write(template_html.replace('<model-viewer>', obj_html))
 
-    html_path = '/'.join(Path(output_html_path).parts[1:])
-    iframe_tag = f'<iframe src="/static/{html_path}" height="{height}" width="100%" frameborder="0"></iframe>'
-    print(f'Find html {output_html_path}, {os.path.exists(output_html_path)}')
+    rel_path = os.path.relpath(output_html_path, SAVE_DIR)
+    iframe_tag = f'<iframe src="/static/{rel_path}" height="{height}" width="100%" frameborder="0"></iframe>'
+    print(
+        f'Find html file {output_html_path}, {os.path.exists(output_html_path)}, relative HTML path is /static/{rel_path}')
+
+    # html_path = '/'.join(Path(output_html_path).parts[1:])
+    # iframe_tag = f'<iframe src="/static/{html_path}" height="{height}" width="100%" frameborder="0"></iframe>'
+    # print(f'Find html {output_html_path}, {os.path.exists(output_html_path)}')
 
     return f"""
         <div style='height: {height}; width: 100%;'>
@@ -91,7 +96,6 @@ def _gen_shape(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    return_dict = None
 ):
     if caption: print('prompt is', caption)
     save_folder = gen_save_folder()
@@ -102,9 +106,7 @@ def _gen_shape(
     if image is None:
         start_time = time.time()
         try:
-            image = t2i_worker(caption, seed)
-            if return_dict != None:
-                return_dict["image"] = image
+            image = t2i_worker(caption)
         except Exception as e:
             raise gr.Error(f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`.")
         time_meta['text2image'] = time.time() - start_time
@@ -142,7 +144,7 @@ def _gen_shape(
     time_meta['image_to_textured_3d'] = {'total': time.time() - start_time}
     time_meta['total'] = time.time() - start_time_0
     stats['time'] = time_meta
-    return mesh, save_folder
+    return mesh, image, save_folder
 
 
 def generation_all(
@@ -154,18 +156,15 @@ def generation_all(
     octree_resolution=256,
     check_box_rembg=False
 ):
-    return_dict = {}
-    mesh, save_folder = _gen_shape(
+    mesh, image, save_folder = _gen_shape(
         caption,
         image,
         steps=steps,
         guidance_scale=guidance_scale,
         seed=seed,
         octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        return_dict= return_dict
+        check_box_rembg=check_box_rembg
     )
-    image = return_dict.get("image", image)
 
     path = export_mesh(mesh, save_folder, textured=False)
     model_viewer_html = build_model_viewer_html(save_folder, height=596, width=700)
@@ -277,7 +276,7 @@ def build_app():
                                         label="Text Prompts", examples_per_page=18)
 
         if not HAS_TEXTUREGEN:
-            gr.HTML(""")
+            gr.HTML("""
             <div style="margin-top: 20px;">
                 <b>Warning: </b>
                 Texture synthesis is disable due to missing requirements,
@@ -386,7 +385,7 @@ if __name__ == '__main__':
     from hy3dgen.rembg import BackgroundRemover
 
     rmbg_worker = BackgroundRemover()
-    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2', device="cpu", use_safetensors = True)
+    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2', device="cpu", use_safetensors = True) 
 
     floater_remove_worker = FloaterRemover()
     degenerate_face_remove_worker = DegenerateFaceRemover()
