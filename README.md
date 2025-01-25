@@ -1,3 +1,5 @@
+[中文阅读](README_zh_cn.md)
+[日本語で読む](README_ja_jp.md)
 
 # Hunyuan3D-2GP: 3D Generation for the GPU Poor
 *GPU Poor version by **DeepBeepMeep**. This great video generator can now run smoothly with less than 6 GB of VRAM.*
@@ -7,13 +9,15 @@ This is another integration of the *mmgp 3.1* module that allows easy to setup a
 https://github.com/deepbeepmeep/mmgp
 
 <div align="center">
-  <a href=https://3d.hunyuan.tencent.com target="_blank"><img src=https://img.shields.io/badge/Hunyuan3D-black.svg?logo=homepage height=22px></a>
+  <a href=https://3d.hunyuan.tencent.com target="_blank"><img src=https://img.shields.io/badge/Official%20Site-333399.svg?logo=homepage height=22px></a>
   <a href=https://huggingface.co/spaces/tencent/Hunyuan3D-2  target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Demo-276cb4.svg height=22px></a>
   <a href=https://huggingface.co/tencent/Hunyuan3D-2 target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Models-d96902.svg height=22px></a>
   <a href=https://3d-models.hunyuan.tencent.com/ target="_blank"><img src= https://img.shields.io/badge/Page-bb8a2e.svg?logo=github height=22px></a>
-<a href=https://discord.gg/GuaWYwzKbX target="_blank"><img src= https://img.shields.io/badge/Page-white.svg?logo=discord height=22px></a>
+  <a href=https://discord.gg/GuaWYwzKbX target="_blank"><img src= https://img.shields.io/badge/Discord-white.svg?logo=discord height=22px></a>
+  <a href=https://arxiv.org/abs/2501.12202 target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>
+  <a href=https://x.com/txhunyuan target="_blank"><img src=https://img.shields.io/badge/Hunyuan-black.svg?logo=x height=22px></a>
+ <a href="#community-resources" target="_blank"><img src=https://img.shields.io/badge/Community-lavender.svg?logo=homeassistantcommunitystore height=22px></a>
 </div>
-
 
 [//]: # (  <a href=# target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>)
 
@@ -22,6 +26,15 @@ https://github.com/deepbeepmeep/mmgp
 [//]: # (  <a href="#"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/v/mulankit?logo=pypi"  height=22px></a>)
 
 <br>
+
+> Join our **[Wechat](#)** and **[Discord](https://discord.gg/GuaWYwzKbX)** group to discuss and find help from us.
+
+| Wechat Group                                     | Xiaohongshu                                           | X                                           | Discord                                           |
+|--------------------------------------------------|-------------------------------------------------------|---------------------------------------------|---------------------------------------------------|
+| <img src="assets/qrcode/wechat.png"  height=140> | <img src="assets/qrcode/xiaohongshu.png"  height=140> | <img src="assets/qrcode/x.png"  height=140> | <img src="assets/qrcode/discord.png"  height=140> |        
+
+---
+
 <p align="center">
 “ Living out everyone’s imagination on creating and manipulating 3D assets.”
 </p>
@@ -32,6 +45,13 @@ https://github.com/deepbeepmeep/mmgp
 - Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: low VRAM support and unlocked text to 3D generator
 - Jan 21, 2025: 💬 Release [Hunyuan3D 2.0](https://huggingface.co/spaces/tencent/Hunyuan3D-2). Please give it a try!
 
+- Jan 23, 2025: 💬 We thank community members for creating [Windows installation tool](https://github.com/YanWenKun/Comfy3D-WinPortable/releases/tag/r8-hunyuan3d2), ComfyUI support with [ComfyUI-Hunyuan3DWrapper](https://github.com/kijai/ComfyUI-Hunyuan3DWrapper) and [ComfyUI-3D-Pack](https://github.com/MrForExample/ComfyUI-3D-Pack) and other awesome [extensions](#community-resources).
+- Jan 21, 2025: 💬 Enjoy exciting 3D generation on our website [Hunyuan3D Studio](https://3d.hunyuan.tencent.com)!
+- Jan 21, 2025: 💬 Release inference code and pretrained models
+  of [Hunyuan3D 2.0](https://huggingface.co/tencent/Hunyuan3D-2).
+- Jan 21, 2025: 💬 Release Hunyuan3D 2.0. Please give it a try
+  via [huggingface space](https://huggingface.co/spaces/tencent/Hunyuan3D-2) and
+  our [official site](https://3d.hunyuan.tencent.com)!
 
 ## **Abstract**
 
@@ -133,10 +153,11 @@ Generation results of Hunyuan3D 2.0:
 
 ### Pretrained Models
 
-| Model                | Date       | Huggingface                                            |
-|----------------------|------------|--------------------------------------------------------| 
-| Hunyuan3D-DiT-v2-0   | 2025-01-21 | [Download](https://huggingface.co/tencent/Hunyuan3D-2) |
-| Hunyuan3D-Paint-v2-0 | 2025-01-21 | [Download](https://huggingface.co/tencent/Hunyuan3D-2) |
+| Model                  | Date       | Params | Huggingface                                                                             |
+|------------------------|------------|--------|-----------------------------------------------------------------------------------------| 
+| Hunyuan3D-DiT-v2-0     | 2025-01-21 | 2.6B   | [Download](https://huggingface.co/tencent/Hunyuan3D-2)                                  |
+| Hunyuan3D-Paint-v2-0   | 2025-01-21 | 1.3B   | [Download](https://huggingface.co/tencent/Hunyuan3D-2)                                  |
+| Hunyuan3D-Delight-v2-0 | 2025-01-21 | 1.3B   | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-delight-v2-0) | 
 
 ## 🤗 Get Started with Hunyuan3D 2.0
 
@@ -159,10 +180,10 @@ pip install torch==2.5.1 torchvision torchaudio --index-url https://download.pyt
 pip install -r requirements.txt
 # for texture
 cd hy3dgen/texgen/custom_rasterizer
-python setup.py install
+python3 setup.py install
 cd ../../..
 cd hy3dgen/texgen/differentiable_renderer
-python setup.py install
+bash compile_mesh_painter.sh OR python3 setup.py install (on Windows)
 ```
 
 ### API Usage
@@ -226,14 +247,37 @@ If you found this repository helpful, please cite our report:
     title={Hunyuan3D 2.0: Scaling Diffusion Models for High Resolution Textured 3D Assets Generation},
     author={Tencent Hunyuan3D Team},
     year={2025},
+    eprint={2501.12202},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
+}
+
+@misc{yang2024hunyuan3d,
+    title={Hunyuan3D 1.0: A Unified Framework for Text-to-3D and Image-to-3D Generation},
+    author={Tencent Hunyuan3D Team},
+    year={2024},
+    eprint={2411.02293},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
 }
 ```
+
+## Community Resources
+
+Thanks for the contributions of community members, here we have these great extensions of Hunyuan3D 2.0:
+
+- [ComfyUI-3D-Pack](https://github.com/MrForExample/ComfyUI-3D-Pack) 
+- [ComfyUI-Hunyuan3DWrapper](https://github.com/kijai/ComfyUI-Hunyuan3DWrapper)
+- [Hunyuan3D-2-for-windows](https://github.com/sdbds/Hunyuan3D-2-for-windows)
+- [📦 A bundle for running on Windows | 整合包](https://github.com/YanWenKun/Comfy3D-WinPortable/releases/tag/r8-hunyuan3d2)
+
 
 ## Acknowledgements
 
 We would like to thank the contributors to
-the [DINOv2](https://github.com/facebookresearch/dinov2), [Stable Diffusion](https://github.com/Stability-AI/stablediffusion), [FLUX](https://github.com/black-forest-labs/flux), [diffusers](https://github.com/huggingface/diffusers)
-and [HuggingFace](https://huggingface.co) repositories, for their open research and exploration.
+the [DINOv2](https://github.com/facebookresearch/dinov2), [Stable Diffusion](https://github.com/Stability-AI/stablediffusion), [FLUX](https://github.com/black-forest-labs/flux), [diffusers](https://github.com/huggingface/diffusers), [HuggingFace](https://huggingface.co), [CraftsMan3D](https://github.com/wyysf-98/CraftsMan3D),
+and [Michelangelo](https://github.com/NeuralCarver/Michelangelo/tree/main) repositories, for their open research and
+exploration.
 
 ## Star History
 

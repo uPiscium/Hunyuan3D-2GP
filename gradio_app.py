@@ -190,7 +190,7 @@ def shape_generation(
     octree_resolution=256,
     check_box_rembg=False,
 ):
-    mesh, save_folder = _gen_shape(
+    mesh, image, save_folder = _gen_shape(
         caption,
         image,
         steps=steps,
@@ -337,6 +337,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8080)
+    parser.add_argument('--host', type=str, default='0.0.0.0')
     parser.add_argument('--cache-path', type=str, default='gradio_cache')
     parser.add_argument('--enable_t23d', action='store_true')
     parser.add_argument('--profile', type=str, default="3")
@@ -373,7 +374,6 @@ if __name__ == '__main__':
         HAS_TEXTUREGEN = False
 
     HAS_T2I = False
-    t2i_worker = None
     if args.enable_t23d:
         from hy3dgen.text2image import HunyuanDiTPipeline
 
@@ -394,9 +394,10 @@ if __name__ == '__main__':
     profile = int(args.profile) 
     kwargs = {}
     pipe = offload.extract_models("i23d_worker", i23d_worker)
-    pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
-    texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
-    if t2i_worker != None:
+    if HAS_TEXTUREGEN:
+        pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
+        texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
+    if HAS_T2I:
         pipe.update(  offload.extract_models( "t2i_worker", t2i_worker))
         
 
@@ -418,4 +419,4 @@ if __name__ == '__main__':
 
     demo = build_app()
     app = gr.mount_gradio_app(app, demo, path="/")
-    uvicorn.run(app, host="127.0.0.1", port=args.port)
+    uvicorn.run(app, host=args.host, port=args.port)
