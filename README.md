@@ -40,6 +40,7 @@ https://github.com/deepbeepmeep/mmgp
 </p>
 
 ## 🔥 News
+- Jan 25, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: Synced code with original repo.Many thanks to YanWenKun for the work.
 - Jan 23, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: added lighning fix in rendering window
 - Jan 23, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: added Windows support thanks to MrForExample and sdbds + omitted optimization that keeps under VRAM 6GB with profile 4 or 5
 - Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: low VRAM support and unlocked text to 3D generator
