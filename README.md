@@ -75,7 +75,7 @@ e.t.c.
 
 2) Enter either one of the commande lines in bash session
 
-To run the image to 3E generator:
+To run the image to 3D generator:
 ```bash
 python gradio_app.py
 ```
