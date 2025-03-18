@@ -24,15 +24,16 @@
 
 
 import logging
-import os
-
 import numpy as np
+import os
 import torch
 from PIL import Image
+from typing import Union, Optional
 
 from .differentiable_renderer.mesh_render import MeshRender
 from .utils.dehighlight_utils import Light_Shadow_Remover
 from .utils.multiview_utils import Multiview_Diffusion_Net
+from .utils.imagesuper_utils import Image_Super_Net
 from .utils.uv_warp_utils import mesh_uv_wrap
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class Hunyuan3DTexGenConfig:
         self.candidate_view_weights = [1, 0.1, 0.5, 0.1, 0.05, 0.05]
 
         self.render_size = 2048
-        self.texture_size = 1024
+        self.texture_size = 2048
         self.bake_exp = 4
         self.merge_method = 'fast'
 
@@ -100,6 +101,11 @@ class Hunyuan3DPaintPipeline:
         # Load model
         self.models['delight_model'] = Light_Shadow_Remover(self.config)
         self.models['multiview_model'] = Multiview_Diffusion_Net(self.config)
+        # self.models['super_model'] = Image_Super_Net(self.config)
+
+    def enable_model_cpu_offload(self, gpu_id: Optional[int] = None, device: Union[torch.device, str] = "cuda"):
+        self.models['delight_model'].pipeline.enable_model_cpu_offload(gpu_id=gpu_id, device=device)
+        self.models['multiview_model'].pipeline.enable_model_cpu_offload(gpu_id=gpu_id, device=device)
 
     def render_normal_multiview(self, camera_elevs, camera_azims, use_abs_coor=True):
         normal_maps = []
@@ -210,6 +216,7 @@ class Hunyuan3DPaintPipeline:
         multiviews = self.models['multiview_model'](image_prompt, normal_maps + position_maps, camera_info)
 
         for i in range(len(multiviews)):
+            #     multiviews[i] = self.models['super_model'](multiviews[i])
             multiviews[i] = multiviews[i].resize(
                 (self.config.render_size, self.config.render_size))
 

@@ -35,7 +35,7 @@ accelerate
 gradio
 uvicorn
 fastapi
-mmgp==3.1.3
+mmgp==3.2.7
 uvicorn
 rembg
 onnxruntime
