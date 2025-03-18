@@ -745,7 +745,7 @@ if __name__ == '__main__':
             print('Please try to install requirements by following README.md')
             HAS_TEXTUREGEN = False
 
-    HAS_T2I = True
+    HAS_T2I = False
     if args.enable_t23d:
         from hy3dgen.text2image import HunyuanDiTPipeline
 
