@@ -5,44 +5,15 @@
 *GPU Poor version by **DeepBeepMeep**. This great video generator can now run smoothly with less than 6 GB of VRAM.*
 <BR>
 
-This is another integration of the *mmgp 3.1* module that allows easy to setup advanced and fast offloading.\
+This is another integration of the *mmgp* module that allows easy to setup advanced and fast offloading.\
 https://github.com/deepbeepmeep/mmgp
 
-<div align="center">
-  <a href=https://3d.hunyuan.tencent.com target="_blank"><img src=https://img.shields.io/badge/Official%20Site-333399.svg?logo=homepage height=22px></a>
-  <a href=https://huggingface.co/spaces/tencent/Hunyuan3D-2  target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Demo-276cb4.svg height=22px></a>
-  <a href=https://huggingface.co/tencent/Hunyuan3D-2 target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Models-d96902.svg height=22px></a>
-  <a href=https://3d-models.hunyuan.tencent.com/ target="_blank"><img src= https://img.shields.io/badge/Page-bb8a2e.svg?logo=github height=22px></a>
-  <a href=https://discord.gg/dNBrdrGGMa target="_blank"><img src= https://img.shields.io/badge/Discord-white.svg?logo=discord height=22px></a>
-  <a href=https://arxiv.org/abs/2501.12202 target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>
-  <a href=https://x.com/txhunyuan target="_blank"><img src=https://img.shields.io/badge/Hunyuan-black.svg?logo=x height=22px></a>
- <a href="#community-resources" target="_blank"><img src=https://img.shields.io/badge/Community-lavender.svg?logo=homeassistantcommunitystore height=22px></a>
-</div>
 
-[//]: # (  <a href=# target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>)
 
-[//]: # (  <a href=# target="_blank"><img src= https://img.shields.io/badge/Colab-8f2628.svg?logo=googlecolab height=22px></a>)
 
-[//]: # (  <a href="#"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/v/mulankit?logo=pypi"  height=22px></a>)
-
-<br>
-
-> 🔥🔥🔥 **New**: Release 🤗 [Hunyuan3D-2mv](https://huggingface.co/spaces/tencent/Hunyuan3D-2mv) and
-> 🤗[Hunyuan3D-2mini](https://huggingface.co/tencent/Hunyuan3D-2mini).
-
-> Join our **[Wechat](#)** and **[Discord](https://discord.gg/dNBrdrGGMa)** group to discuss and find help from us.
-
-| Wechat Group                                     | Xiaohongshu                                           | X                                           | Discord                                           |
-|--------------------------------------------------|-------------------------------------------------------|---------------------------------------------|---------------------------------------------------|
-| <img src="assets/qrcode/wechat.png"  height=140> | <img src="assets/qrcode/xiaohongshu.png"  height=140> | <img src="assets/qrcode/x.png"  height=140> | <img src="assets/qrcode/discord.png"  height=140> |        
-
----
-
-<p align="center">
-“ Living out everyone’s imagination on creating and manipulating 3D assets.”
-</p>
 
 ## 🔥 News
+- Mar 18, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: Support for Hunyuan3D turbo models
 - Mar 18, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: Support for Hunyuan3D-2mv and  Hunyuan3D-2mini
 - Jan 25, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: Synced code with original repo.Many thanks to YanWenKun for the work.
 - Jan 23, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: added lighning fix in rendering window
@@ -50,6 +21,7 @@ https://github.com/deepbeepmeep/mmgp
 - Jan 22, 2025: 💬 Hunyuan3D-2.0GP by Deepbeepmeep: low VRAM support and unlocked text to 3D generator
 - Jan 21, 2025: 💬 Release [Hunyuan3D 2.0](https://huggingface.co/spaces/tencent/Hunyuan3D-2). Please give it a try!
 
+- Mar 19, 2025: 🤗 Release turbo model [Hunyuan3D-2-Turbo](https://huggingface.co/tencent/Hunyuan3D-2/), [Hunyuan3D-2mini-Turbo](https://huggingface.co/tencent/Hunyuan3D-2mini/) and [FlashVDM](https://github.com/Tencent/FlashVDM).
 - Mar 18, 2025: 🤗 Release multiview shape model [Hunyuan3D-2mv](https://huggingface.co/tencent/Hunyuan3D-2mv) and 0.6B
   shape model [Hunyuan3D-2mini](https://huggingface.co/tencent/Hunyuan3D-2mini).
 - Feb 14, 2025: 🛠️ Release texture enhancement module, please obtain high-definition textures
@@ -109,6 +81,12 @@ To run the original Hunyuan3D-2 image to 3D generator:
 ```bash
 python gradio_app.py --h2
 ```
+
+To use the Turbo version of one specific model, add *--turbo*. For instance to run the turbo Hunyuan3D-2mv (multi views) image to 3D generator:
+```bash
+python gradio_app.py --mv --turbo
+```
+
 
 
 By default the memory profile assumes 9 GB of VRAM *(profile 3)*. If you have less but at least 6 GB of VRAM add *--profile 4*
@@ -188,29 +166,34 @@ Generation results of Hunyuan3D 2.0:
 
 ## 🎁 Models Zoo
 
-It takes 6 GB VRAM for shape generation and 12 GB for shape and texture generation in total with cpu offloading.
+It takes 6 GB VRAM for shape generation and 24.5 GB for shape and texture generation in total.
 
 Hunyuan3D-2mini Series
 
-| Model                    | Description                    | Date       | Size | Huggingface                                                                              |
-|--------------------------|--------------------------------|------------|------|------------------------------------------------------------------------------------------|
-| Hunyuan3D-DiT-v2-mini    | Mini Image to Shape Model      | 2025-03-18 | 0.6B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mini/tree/main/hunyuan3d-dit-v2-mini)      |
+| Model                       | Description                   | Date       | Size | Huggingface                                                                                      |
+|-----------------------------|-------------------------------|------------|------|--------------------------------------------------------------------------------------------------|
+| Hunyuan3D-DiT-v2-mini-Turbo | Step Distillation Version     | 2025-03-19 | 0.6B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mini/tree/main/hunyuan3d-dit-v2-mini-turbo) |
+| Hunyuan3D-DiT-v2-mini-Fast  | Guidance Distillation Version | 2025-03-18 | 0.6B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mini/tree/main/hunyuan3d-dit-v2-mini-fast)  |
+| Hunyuan3D-DiT-v2-mini       | Mini Image to Shape Model     | 2025-03-18 | 0.6B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mini/tree/main/hunyuan3d-dit-v2-mini)       |
+
 
 Hunyuan3D-2mv Series
 
-| Model                    | Description                    | Date       | Size | Huggingface                                                                              |
-|--------------------------|--------------------------------|------------|------|------------------------------------------------------------------------------------------| 
-| Hunyuan3D-DiT-v2-mv-Fast | Guidance Distillation Version  | 2025-03-18 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mv/tree/main/hunyuan3d-dit-v2-mv-fast) |
-| Hunyuan3D-DiT-v2-mv      | Multiview Image to Shape Model | 2025-03-18 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mv/tree/main/hunyuan3d-dit-v2-mv)      |
+| Model                     | Description                    | Date       | Size | Huggingface                                                                                  |
+|---------------------------|--------------------------------|------------|------|----------------------------------------------------------------------------------------------| 
+| Hunyuan3D-DiT-v2-mv-Turbo | Step Distillation Version      | 2025-03-19 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mv/tree/main/hunyuan3d-dit-v2-mv-turbo) |
+| Hunyuan3D-DiT-v2-mv-Fast  | Guidance Distillation Version  | 2025-03-18 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mv/tree/main/hunyuan3d-dit-v2-mv-fast)  |
+| Hunyuan3D-DiT-v2-mv       | Multiview Image to Shape Model | 2025-03-18 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2mv/tree/main/hunyuan3d-dit-v2-mv)       |
 
 Hunyuan3D-2 Series
 
-| Model                    | Description                    | Date       | Size | Huggingface                                                                              |
-|--------------------------|--------------------------------|------------|------|------------------------------------------------------------------------------------------| 
-| Hunyuan3D-DiT-v2-0-Fast  | Guidance Distillation Model    | 2025-02-03 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-dit-v2-0-fast) |
-| Hunyuan3D-DiT-v2-0       | Image to Shape Model           | 2025-01-21 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-dit-v2-0)      |
-| Hunyuan3D-Paint-v2-0     | Texture Generation Model       | 2025-01-21 | 1.3B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-paint-v2-0)    |
-| Hunyuan3D-Delight-v2-0   | Image Delight Model            | 2025-01-21 | 1.3B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-delight-v2-0)  | 
+| Model                    | Description                 | Date       | Size | Huggingface                                                                               |
+|--------------------------|-----------------------------|------------|------|-------------------------------------------------------------------------------------------| 
+| Hunyuan3D-DiT-v2-0-Turbo | Step Distillation Model     | 2025-03-19 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-dit-v2-0-turbo) |
+| Hunyuan3D-DiT-v2-0-Fast  | Guidance Distillation Model | 2025-02-03 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-dit-v2-0-fast)  |
+| Hunyuan3D-DiT-v2-0       | Image to Shape Model        | 2025-01-21 | 1.1B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-dit-v2-0)       |
+| Hunyuan3D-Paint-v2-0     | Texture Generation Model    | 2025-01-21 | 1.3B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-paint-v2-0)     |
+| Hunyuan3D-Delight-v2-0   | Image Delight Model         | 2025-01-21 | 1.3B | [Download](https://huggingface.co/tencent/Hunyuan3D-2/tree/main/hunyuan3d-delight-v2-0)   | 
 
 ## 🤗 Get Started with Hunyuan3D 2.0
 
@@ -276,7 +259,8 @@ pipeline = Hunyuan3DPaintPipeline.from_pretrained('tencent/Hunyuan3D-2')
 mesh = pipeline(mesh, image='assets/demo.png')
 ```
 
-Please visit [examples](examples) folder for more advanced usage, such as **multiview image to 3D generation** and **texture generation
+Please visit [examples](examples) folder for more advanced usage, such as **multiview image to 3D generation** and *
+*texture generation
 for handcrafted mesh**.
 
 

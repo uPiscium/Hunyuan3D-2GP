@@ -1,13 +1,3 @@
-# Open Source Model Licensed under the Apache License Version 2.0
-# and Other Licenses of the Third-Party Components therein:
-# The below Model in this distribution may have been modified by THL A29 Limited
-# ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2024 THL A29 Limited.
-
-# Copyright (C) 2024 THL A29 Limited, a Tencent company.  All rights reserved.
-# The below software and/or models in this distribution may have been
-# modified by THL A29 Limited ("Tencent Modifications").
-# All Tencent Modifications are Copyright (C) THL A29 Limited.
-
 # Hunyuan 3D is licensed under the TENCENT HUNYUAN NON-COMMERCIAL LICENSE AGREEMENT
 # except for the third-party components listed below.
 # Hunyuan 3D does not impose any additional limitations beyond what is outlined
@@ -73,6 +63,9 @@ def pymeshlab2trimesh(mesh: pymeshlab.MeshSet):
     with tempfile.NamedTemporaryFile(suffix='.ply', delete=False) as temp_file:
         mesh.save_current_mesh(temp_file.name)
         mesh = trimesh.load(temp_file.name)
+
+    if os.path.isfile(temp_file.name):
+        os.remove(temp_file.name)
     # 检查加载的对象类型
     if isinstance(mesh, trimesh.Scene):
         combined_mesh = trimesh.Trimesh()
@@ -95,6 +88,9 @@ def trimesh2pymeshlab(mesh: trimesh.Trimesh):
         mesh.export(temp_file.name)
         mesh = pymeshlab.MeshSet()
         mesh.load_new_mesh(temp_file.name)
+    if os.path.isfile(temp_file.name):
+        os.remove(temp_file.name)
+
     return mesh
 
 
@@ -158,7 +154,7 @@ class DegenerateFaceRemover:
     ) -> Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput]:
         ms = import_mesh(mesh)
 
-        with tempfile.NamedTemporaryFile(suffix='.ply', delete=True) as temp_file:
+        with tempfile.NamedTemporaryFile(suffix='.ply', delete=False) as temp_file:
             ms.save_current_mesh(temp_file.name)
             ms = pymeshlab.MeshSet()
             ms.load_new_mesh(temp_file.name)
@@ -198,8 +194,8 @@ class MeshSimplifier:
         self,
         mesh: Union[trimesh.Trimesh],
     ) -> Union[trimesh.Trimesh]:
-        with tempfile.NamedTemporaryFile(suffix='.obj', delete=True) as temp_input:
-            with tempfile.NamedTemporaryFile(suffix='.obj', delete=True) as temp_output:
+        with tempfile.NamedTemporaryFile(suffix='.obj', delete=False) as temp_input:
+            with tempfile.NamedTemporaryFile(suffix='.obj', delete=False) as temp_output:
                 mesh.export(temp_input.name)
                 os.system(f'{self.executable} {temp_input.name} {temp_output.name}')
                 ms = trimesh.load(temp_output.name, process=False)
