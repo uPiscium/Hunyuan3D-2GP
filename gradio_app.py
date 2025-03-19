@@ -872,7 +872,7 @@ if __name__ == '__main__':
         kwargs["pinnedMemory"] = "i23d_worker/model"
     if profile !=1 and profile !=3:
         kwargs["budgets"] = { "*" : 2200 }
-
+    offload.default_verboseLevel = verboseLevel = int(args.verbose)
     offload.profile(pipe, profile_no = profile, verboseLevel = int(args.verbose), **kwargs)
 
 
