@@ -41,3 +41,4 @@ rembg
 onnxruntime
 #gevent
 #geventhttpclient
+pydantic==2.10.6
