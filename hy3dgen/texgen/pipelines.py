@@ -50,6 +50,14 @@ class Hunyuan3DPaintPipeline:
     @classmethod
     def from_pretrained(cls, model_path):
         original_model_path = model_path
+        # 1) If a local directory is provided and it contains expected subfolders, use it directly.
+        if os.path.exists(model_path):
+            delight_model_path = os.path.join(model_path, 'hunyuan3d-delight-v2-0')
+            multiview_model_path = os.path.join(model_path, 'hunyuan3d-paint-v2-0')
+            if os.path.exists(delight_model_path) and os.path.exists(multiview_model_path):
+                return cls(Hunyuan3DTexGenConfig(delight_model_path, multiview_model_path))
+
+        # 2) Otherwise, try local cache layout, then fall back to Hugging Face Hub
         if not os.path.exists(model_path):
             # try local path
             base_dir = os.environ.get('HY3DGEN_MODELS', '~/.cache/hy3dgen')

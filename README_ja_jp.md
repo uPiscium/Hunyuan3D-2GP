@@ -98,16 +98,17 @@ Hunyuan3D 2.0の生成結果：
 
 ### 必要なものをインストール
 
-公式サイトからPytorchをインストールしてください。次に、他の必要なものを以下の方法でインストールします。
+uv を使うと、環境構築と依存関係のインストールができます。
 
 ```bash
-pip install -r requirements.txt
-# for texture
-cd hy3dgen/texgen/custom_rasterizer
-python3 setup.py install
-cd hy3dgen/texgen/differentiable_renderer
-python3 setup.py install
+# 依存関係の同期（リポジトリ内のネイティブ拡張のビルドも含む）
+uv sync
 ```
+注意:
+- CUDA 版の PyTorch が必要な場合は、同期前に追加インデックスを設定してください。
+  - Bash: `export UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu124`
+  - PowerShell: `$env:UV_EXTRA_INDEX_URL = "https://download.pytorch.org/whl/cu124"`
+  設定後に `uv sync` を実行すると、CUDA 対応ホイールが見つかりやすくなります。(らしい)
 
 ### APIの使い方
 
@@ -145,7 +146,7 @@ mesh = pipeline(mesh, image='assets/demo.png')
 次の方法で自分のコンピュータで[Gradio](https://www.gradio.app/)アプリをホストすることもできます：
 
 ```bash
-python3 gradio_app.py
+uv run python gradio_app.py
 ```
 
 自分でホストしたくない場合は、[Hunyuan3D](https://3d.hunyuan.tencent.com)を訪れてすぐに使用してください。

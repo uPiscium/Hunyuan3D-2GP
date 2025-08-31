@@ -45,7 +45,9 @@ include_dirs.extend(platform_includes)
 
 ext_modules = [
     Extension(
-        "mesh_processor",
+        # Build the extension inside the package so imports like
+        # `from .mesh_processor import ...` work.
+        "differentiable_renderer.mesh_processor",
         ["mesh_processor.cpp"],
         include_dirs=include_dirs,
         language='c++',

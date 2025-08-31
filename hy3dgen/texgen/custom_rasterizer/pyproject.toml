@@ -1,0 +1,21 @@
+[build-system]
+requires = [
+  "setuptools>=68",
+  "wheel",
+  # Needed at build time for torch's CUDAExtension and headers
+  "torch",
+  # Speeds up C/CUDA builds
+  "ninja",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "custom_rasterizer"
+version = "0.1.0"
+description = "Custom CUDA rasterizer for Hunyuan3D texgen"
+requires-python = ">=3.12"
+dependencies = [
+  "torch",
+  "ninja",
+]
+

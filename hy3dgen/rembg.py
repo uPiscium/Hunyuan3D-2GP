@@ -13,13 +13,20 @@
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 
 from PIL import Image
-from rembg import remove, new_session
+try:
+    from rembg import remove, new_session  # type: ignore
+except Exception:
+    remove = None  # type: ignore
+    new_session = None  # type: ignore
 
 
 class BackgroundRemover():
     def __init__(self):
-        self.session = new_session()
+        # Lazy session creation only if rembg is available
+        self.session = new_session() if new_session is not None else None
 
     def __call__(self, image: Image.Image):
-        output = remove(image, session=self.session, bgcolor=[255, 255, 255, 0])
-        return output
+        # If rembg is not installed, return the input image unchanged
+        if remove is None:
+            return image
+        return remove(image, session=self.session, bgcolor=[255, 255, 255, 0])

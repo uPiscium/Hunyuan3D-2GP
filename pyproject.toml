@@ -1,9 +1,66 @@
 [project]
 name = "hunyuan3d-2gp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Hunyuan3D-2GP: 3D Generation for the GPU Poor"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi>=0.115.14",
+    # Core
+    "accelerate",
+    "diffusers",
+    "einops",
+    "fastapi>=0.110,<0.116",
+    "gradio>=4.44,<5",
+    "starlette>=0.37,<0.47",
+    "gradio_litmodel3d",
+    "huggingface-hub>=0.20",
+    "numpy",
+    "omegaconf",
+    "pydantic>=2.7,<2.10",
+    "pybind11",
+    "tqdm",
+    "torch==2.6.0+cu124",
+    "torchvision==0.21.0+cu124",
+    "transformers==4.49.0",
+    "uvicorn>=0.30",
+    # 3D / Mesh
+    "pygltflib",
+    "trimesh",
+    "xatlas",
+    # Utilities
+    "diso",
+    "ninja",
+    "scikit-image",
+    # Offloading
+    "mmgp==3.2.7",
+    # Local C++/CUDA extensions (built from source via uv sources)
+    "custom_rasterizer",
+    "mesh_processor",
+    "opencv-python>=4.12.0.88",
+    "pymeshlab>=2023.12.post3",
 ]
+
+# Let uv resolve local path sources for in-repo native extensions
+[tool.uv.sources]
+custom_rasterizer = { path = "hy3dgen/texgen/custom_rasterizer" }
+mesh_processor    = { path = "hy3dgen/texgen/differentiable_renderer" }
+
+[project.optional-dependencies]
+postproc = [
+  # Pin to a series with broad wheel availability; install only if you need mesh post-processing
+  "pymeshlab<2025.0",
+]
+bg = [
+  # Background removal (optional). On Python 3.12, prefer a newer numba.
+  "rembg",
+  "onnxruntime",
+  "numba>=0.60; python_version >= '3.12'",
+]
+
+[tool.uv]
+# You can opt into CUDA wheels for PyTorch by adding the PyTorch index as an extra index.
+# index = ["https://download.pytorch.org/whl/cu124"]
+index-strategy = "unsafe-best-match"
+
+[tool.uv.extra-build-dependencies]
+diso = ["torch"]

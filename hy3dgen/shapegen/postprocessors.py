@@ -14,27 +14,42 @@
 
 import os
 import tempfile
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
 import numpy as np
-import pymeshlab
+try:
+    import pymeshlab  # type: ignore
+except Exception:
+    pymeshlab = None  # type: ignore
 import torch
 import trimesh
 
 from .models.autoencoders import Latent2MeshOutput
 from .utils import synchronize_timer
 
+if TYPE_CHECKING:  # only for type hints
+    import pymeshlab as _pymeshlab  # noqa: F401
+
+
+def _ensure_pymeshlab():
+    if pymeshlab is None:
+        raise ImportError(
+            "pymeshlab is required for this operation. Install it via 'uv sync --extra postproc' or 'uv add pymeshlab'."
+        )
+
 
 def load_mesh(path):
     if path.endswith(".glb"):
         mesh = trimesh.load(path)
     else:
+        _ensure_pymeshlab()
         mesh = pymeshlab.MeshSet()
         mesh.load_new_mesh(path)
     return mesh
 
 
-def reduce_face(mesh: pymeshlab.MeshSet, max_facenum: int = 200000):
+def reduce_face(mesh: 'pymeshlab.MeshSet', max_facenum: int = 200000):
+    _ensure_pymeshlab()
     if max_facenum > mesh.current_mesh().face_number():
         return mesh
 
@@ -51,7 +66,8 @@ def reduce_face(mesh: pymeshlab.MeshSet, max_facenum: int = 200000):
     return mesh
 
 
-def remove_floater(mesh: pymeshlab.MeshSet):
+def remove_floater(mesh: 'pymeshlab.MeshSet'):
+    _ensure_pymeshlab()
     mesh.apply_filter("compute_selection_by_small_disconnected_components_per_face",
                       nbfaceratio=0.005)
     mesh.apply_filter("compute_selection_transfer_face_to_vertex", inclusive=False)
@@ -59,7 +75,8 @@ def remove_floater(mesh: pymeshlab.MeshSet):
     return mesh
 
 
-def pymeshlab2trimesh(mesh: pymeshlab.MeshSet):
+def pymeshlab2trimesh(mesh: 'pymeshlab.MeshSet'):
+    _ensure_pymeshlab()
     with tempfile.NamedTemporaryFile(suffix='.ply', delete=False) as temp_file:
         mesh.save_current_mesh(temp_file.name)
         mesh = trimesh.load(temp_file.name)
@@ -77,6 +94,7 @@ def pymeshlab2trimesh(mesh: pymeshlab.MeshSet):
 
 
 def trimesh2pymeshlab(mesh: trimesh.Trimesh):
+    _ensure_pymeshlab()
     with tempfile.NamedTemporaryFile(suffix='.ply', delete=False) as temp_file:
         if isinstance(mesh, trimesh.scene.Scene):
             for idx, obj in enumerate(mesh.geometry.values()):
@@ -95,7 +113,7 @@ def trimesh2pymeshlab(mesh: trimesh.Trimesh):
 
 
 def export_mesh(input, output):
-    if isinstance(input, pymeshlab.MeshSet):
+    if pymeshlab is not None and isinstance(input, pymeshlab.MeshSet):
         mesh = output
     elif isinstance(input, Latent2MeshOutput):
         output = Latent2MeshOutput()
@@ -107,10 +125,11 @@ def export_mesh(input, output):
     return mesh
 
 
-def import_mesh(mesh: Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput, str]) -> pymeshlab.MeshSet:
+def import_mesh(mesh: Union['pymeshlab.MeshSet', trimesh.Trimesh, Latent2MeshOutput, str]) -> 'pymeshlab.MeshSet':
     if isinstance(mesh, str):
         mesh = load_mesh(mesh)
     elif isinstance(mesh, Latent2MeshOutput):
+        _ensure_pymeshlab()
         mesh = pymeshlab.MeshSet()
         mesh_pymeshlab = pymeshlab.Mesh(vertex_matrix=mesh.mesh_v, face_matrix=mesh.mesh_f)
         mesh.add_mesh(mesh_pymeshlab, "converted_mesh")
@@ -125,9 +144,9 @@ class FaceReducer:
     @synchronize_timer('FaceReducer')
     def __call__(
         self,
-        mesh: Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput, str],
+        mesh: Union['pymeshlab.MeshSet', trimesh.Trimesh, Latent2MeshOutput, str],
         max_facenum: int = 40000
-    ) -> Union[pymeshlab.MeshSet, trimesh.Trimesh]:
+    ) -> Union['pymeshlab.MeshSet', trimesh.Trimesh]:
         ms = import_mesh(mesh)
         ms = reduce_face(ms, max_facenum=max_facenum)
         mesh = export_mesh(mesh, ms)
@@ -138,8 +157,8 @@ class FloaterRemover:
     @synchronize_timer('FloaterRemover')
     def __call__(
         self,
-        mesh: Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput, str],
-    ) -> Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput]:
+        mesh: Union['pymeshlab.MeshSet', trimesh.Trimesh, Latent2MeshOutput, str],
+    ) -> Union['pymeshlab.MeshSet', trimesh.Trimesh, Latent2MeshOutput]:
         ms = import_mesh(mesh)
         ms = remove_floater(ms)
         mesh = export_mesh(mesh, ms)
@@ -150,11 +169,12 @@ class DegenerateFaceRemover:
     @synchronize_timer('DegenerateFaceRemover')
     def __call__(
         self,
-        mesh: Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput, str],
-    ) -> Union[pymeshlab.MeshSet, trimesh.Trimesh, Latent2MeshOutput]:
+        mesh: Union['pymeshlab.MeshSet', trimesh.Trimesh, Latent2MeshOutput, str],
+    ) -> Union['pymeshlab.MeshSet', trimesh.Trimesh, Latent2MeshOutput]:
         ms = import_mesh(mesh)
 
         with tempfile.NamedTemporaryFile(suffix='.ply', delete=False) as temp_file:
+            _ensure_pymeshlab()
             ms.save_current_mesh(temp_file.name)
             ms = pymeshlab.MeshSet()
             ms.load_new_mesh(temp_file.name)
