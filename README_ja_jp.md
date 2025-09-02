@@ -97,7 +97,18 @@ Hunyuan3D 2.0の生成結果：
 次の手順に従って、コードまたはGradioアプリを使用してHunyuan3D 2.0を使用できます。
 
 ### 必要なものをインストール
+pip版
+公式サイトからPytorchをインストールしてください。次に、他の必要なものを以下の方法でインストールします。
+```bash
+pip install -r requirements.txt
+# for texture
+cd hy3dgen/texgen/custom_rasterizer
+python3 setup.py install
+cd hy3dgen/texgen/differentiable_renderer
+python3 setup.py install
+```
 
+uv版
 uv を使うと、環境構築と依存関係のインストールができます。
 
 ```bash
