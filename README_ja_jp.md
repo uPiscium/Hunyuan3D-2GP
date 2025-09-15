@@ -122,35 +122,27 @@ uv sync
   設定後に `uv sync` を実行すると、CUDA 対応ホイールが見つかりやすくなります。(らしい)
 
 ### APIの使い方
+```bash
+uv sync
+uv run python yummy_api_server.py
 
-形状生成モデル - Hunyuan3D-DiTおよびテクスチャ合成モデル - Hunyuan3D-Paintを使用するためのdiffusersのようなAPIを設計しました。
-
-**Hunyuan3D-DiT**にアクセスするには、次のようにします：
-
-```python
-from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
-
-pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2')
-mesh = pipeline(image='assets/demo.png')[0]
+curl -X POST "http://localhost:8080/generate" -H "Content-Type: application/json" -d @payload.json
 ```
 
-出力メッシュは[trimeshオブジェクト](https://trimesh.org/trimesh.html)であり、glb/obj（または他の形式）ファイルに保存できます。
-
-**Hunyuan3D-Paint**の場合は、次のようにします：
-
-```python
-from hy3dgen.texgen import Hunyuan3DPaintPipeline
-from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
-
-# まずメッシュを生成しましょう
-pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2')
-mesh = pipeline(image='assets/demo.png')[0]
-
-pipeline = Hunyuan3DPaintPipeline.from_pretrained('tencent/Hunyuan3D-2')
-mesh = pipeline(mesh, image='assets/demo.png')
+pyload.json
+```json
+{
+    "uuid": "89952d8d-8bde-4cd9-8910-650905cf2156",
+    "image": "PNG Base64"
+}
 ```
 
-より高度な使用法については、[minimal_demo.py](minimal_demo.py)を参照してください。例えば、**テキストから3D**や**手作りメッシュのテクスチャ生成**などです。
+注意:
+- DATABASEサーバのURLは`DATABASE_BASE_URL = "http://localhost:8000"`でハードコーディングされています。
+- DATABASEサーバーで事前に/create/userを叩いている必要があります
+
+
+
 
 ### Gradioアプリ
 
