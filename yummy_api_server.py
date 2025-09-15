@@ -7,11 +7,12 @@ import random
 import time
 from io import BytesIO
 
+import argparse
 import base64
 import gradio as gr
 import torch
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -22,419 +23,231 @@ import uuid
 
 from hy3dgen.shapegen.utils import logger
 
-DATABASE_BASE_URL = "http://localhost:8000"
-
-MAX_SEED = int(1e7)
-
-app = FastAPI()
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
-app.mount("/gradio_cache", StaticFiles(directory="gradio_cache"), name="gradio_cache")
-
 
 class ImagePayload(BaseModel):
     uuid: str
     image: str
 
 
-def __gen_save_folder():
-    # a folder to save the generated files
-    folder_name = str(uuid.uuid4())
-    save_folder = os.path.join("gradio_cache", folder_name)
-    os.makedirs(save_folder, exist_ok=True)
-    return save_folder
+class App:
+    MAX_SEED = int(1e7)
 
-
-def __build_model_viewer_html(save_folder, height, width, textured=False):
-    model_name = "textured_mesh.glb" if textured else "white_mesh.glb"
-    template_file = (
-        "assets/modelviewer-textured-template.html"
-        if textured
-        else "assets/modelviewer-template.html"
-    )
-    with open(template_file, "r") as f:
-        template = f.read()
-    model_viewer_html = template.replace(
-        "MODEL_NAME", os.path.join(save_folder, model_name)
-    )
-    model_viewer_html = model_viewer_html.replace(
-        "ENV_MAP", "assets/env_maps/white.jpg"
-    )
-    model_viewer_html = model_viewer_html.replace("HEIGHT", str(height))
-    model_viewer_html = model_viewer_html.replace("WIDTH", str(width))
-    return model_viewer_html
-
-
-def __decode_base64_image(base64_string):
-    # "data:image/png;base64," のようなプレフィックスを削除
-    if "," in base64_string:
-        _, encoded = base64_string.split(",", 1)
-    else:
-        encoded = base64_string
-    try:
-        image_data = base64.b64decode(encoded)
-        return Image.open(BytesIO(image_data))
-    except Exception as e:
-        raise ValueError(f"Invalid base64 image: {e}")
-
-
-@app.post("/generate")
-async def generate_api(payload: ImagePayload) -> JSONResponse:
-    try:
-        image = __decode_base64_image(payload.image)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    start_time_0 = time.time()
-    mesh, image, save_folder, stats, seed = __gen_shape(
-        image=image,
-        randomize_seed=True,
-    )
-
-    tmp_time = time.time()
-    mesh = face_reduce_worker(mesh)
-    stats["time"]["face reduction"] = time.time() - tmp_time
-
-    tmp_time = time.time()
-    textured_mesh = texgen_worker(mesh, image)
-    stats["time"]["texture generation"] = time.time() - tmp_time
-    stats["time"]["total"] = time.time() - start_time_0
-
-    textured_mesh.metadata["extras"] = stats
-    path_textured = __export_mesh(textured_mesh, save_folder, textured=True)
-
-    if args.low_vram_mode:
-        torch.cuda.empty_cache()
-
-    try:
-        payload = {"user_id": payload.uuid}
-        file = {"file": open(path_textured, "rb")}
-        response = requests.post(
-            f"{DATABASE_BASE_URL}/save/model", data=payload, files=file
+    def __init__(self, db_endpoint: str):
+        self.__router = APIRouter()
+        self.__app = FastAPI()
+        self.__app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+        self.__app.mount(
+            "/gradio_cache", StaticFiles(directory="gradio_cache"), name="gradio_cache"
         )
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=500, detail="Failed to save model to database."
-            )
-    except Exception as e:
-        print(e)
-        return {"error": str(e)}
-    # print(response.text)
-    return {"message": f"Model generated and saved successfully"}
-    # return FileResponse(path_textured)
+        self.__db_endpoint = db_endpoint
 
+    def __setup_routes(self):
+        self.__router.add_api_route(
+            "/generate",
+            self.generate_api,
+            methods=["POST"],
+            response_class=JSONResponse,
+        )
 
-def __export_mesh(mesh, save_folder, textured=False, type="glb"):
-    if textured:
-        path = os.path.join(save_folder, f"textured_mesh.{type}")
-    else:
-        path = os.path.join(save_folder, f"white_mesh.{type}")
-    if type not in ["glb", "obj"]:
-        mesh.export(path)
-    else:
-        mesh.export(path, include_normals=textured)
-    return path
+    def __gen_save_folder(self):
+        # a folder to save the generated files
+        folder_name = str(uuid.uuid4())
+        save_folder = os.path.join("gradio_cache", folder_name)
+        os.makedirs(save_folder, exist_ok=True)
+        return save_folder
 
-
-def __randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
-    if randomize_seed:
-        seed = random.randint(0, MAX_SEED)
-    return seed
-
-
-def __gen_shape(
-    caption=None,
-    image=None,
-    mv_image_front=None,
-    mv_image_back=None,
-    mv_image_left=None,
-    mv_image_right=None,
-    steps=50,
-    guidance_scale=7.5,
-    seed=1234,
-    octree_resolution=256,
-    check_box_rembg=False,
-    num_chunks=200000,
-    randomize_seed: bool = False,
-):
-    if not MV_MODE and image is None and caption is None:
-        raise gr.Error("Please provide either a caption or an image.")
-    if MV_MODE:
-        if (
-            mv_image_front is None
-            and mv_image_back is None
-            and mv_image_left is None
-            and mv_image_right is None
-        ):
-            raise gr.Error("Please provide at least one view image.")
-        image = {}
-        if mv_image_front:
-            image["front"] = mv_image_front
-        if mv_image_back:
-            image["back"] = mv_image_back
-        if mv_image_left:
-            image["left"] = mv_image_left
-        if mv_image_right:
-            image["right"] = mv_image_right
-
-    seed = int(__randomize_seed_fn(seed, randomize_seed))
-
-    octree_resolution = int(octree_resolution)
-    if caption:
-        print("prompt is", caption)
-    save_folder = __gen_save_folder()
-    stats = {
-        "model": {
-            "shapegen": f"{args.model_path}/{args.subfolder}",
-            "texgen": f"{args.texgen_model_path}",
-        },
-        "params": {
-            "caption": caption,
-            "steps": steps,
-            "guidance_scale": guidance_scale,
-            "seed": seed,
-            "octree_resolution": octree_resolution,
-            "check_box_rembg": check_box_rembg,
-            "num_chunks": num_chunks,
-        },
-    }
-    time_meta = {}
-
-    if image is None:
-        start_time = time.time()
+    def __decode_base64_image(self, base64_string: str) -> Image.Image:
+        # "data:image/png;base64," のようなプレフィックスを削除
+        if "," in base64_string:
+            _, encoded = base64_string.split(",", 1)
+        else:
+            encoded = base64_string
         try:
-            image = t2i_worker(caption)
+            image_data = base64.b64decode(encoded)
+            return Image.open(BytesIO(image_data))
         except Exception as e:
-            raise gr.Error(
-                f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
-            )
-        time_meta["text2image"] = time.time() - start_time
+            raise ValueError(f"Invalid base64 image: {e}")
 
-    # remove disk io to make responding faster, uncomment at your will.
-    # image.save(os.path.join(save_folder, 'input.png'))
-    if MV_MODE:
-        start_time = time.time()
-        for k, v in image.items():
-            if check_box_rembg or v.mode == "RGB":
-                img = rmbg_worker(v.convert("RGB"))
-                image[k] = img
-        time_meta["remove background"] = time.time() - start_time
-    else:
-        if check_box_rembg or image.mode == "RGB":
+    def __export_mesh(self, mesh, save_folder, textured=False, type="glb"):
+        if textured:
+            path = os.path.join(save_folder, f"textured_mesh.{type}")
+        else:
+            path = os.path.join(save_folder, f"white_mesh.{type}")
+        if type not in ["glb", "obj"]:
+            mesh.export(path)
+        else:
+            mesh.export(path, include_normals=textured)
+        return path
+
+    def __randomize_seed_fn(self, seed: int, randomize_seed: bool) -> int:
+        if randomize_seed:
+            seed = random.randint(0, App.MAX_SEED)
+        return seed
+
+    def __gen_shape(
+        self,
+        caption=None,
+        image=None,
+        mv_image_front=None,
+        mv_image_back=None,
+        mv_image_left=None,
+        mv_image_right=None,
+        steps=50,
+        guidance_scale=7.5,
+        seed=1234,
+        octree_resolution=256,
+        check_box_rembg=False,
+        num_chunks=200000,
+        randomize_seed: bool = False,
+    ):
+        if not MV_MODE and image is None and caption is None:
+            raise gr.Error("Please provide either a caption or an image.")
+        if MV_MODE:
+            if (
+                mv_image_front is None
+                and mv_image_back is None
+                and mv_image_left is None
+                and mv_image_right is None
+            ):
+                raise gr.Error("Please provide at least one view image.")
+            image = {}
+            if mv_image_front:
+                image["front"] = mv_image_front
+            if mv_image_back:
+                image["back"] = mv_image_back
+            if mv_image_left:
+                image["left"] = mv_image_left
+            if mv_image_right:
+                image["right"] = mv_image_right
+
+        seed = int(self.__randomize_seed_fn(seed, randomize_seed))
+
+        octree_resolution = int(octree_resolution)
+        if caption:
+            print("prompt is", caption)
+        save_folder = self.__gen_save_folder()
+        stats = {
+            "model": {
+                "shapegen": f"{args.model_path}/{args.subfolder}",
+                "texgen": f"{args.texgen_model_path}",
+            },
+            "params": {
+                "caption": caption,
+                "steps": steps,
+                "guidance_scale": guidance_scale,
+                "seed": seed,
+                "octree_resolution": octree_resolution,
+                "check_box_rembg": check_box_rembg,
+                "num_chunks": num_chunks,
+            },
+        }
+        time_meta = {}
+
+        if image is None:
             start_time = time.time()
-            image = rmbg_worker(image.convert("RGB"))
+            try:
+                image = t2i_worker(caption)
+            except Exception:
+                raise gr.Error(
+                    f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
+                )
+            time_meta["text2image"] = time.time() - start_time
+
+        # remove disk io to make responding faster, uncomment at your will.
+        # image.save(os.path.join(save_folder, 'input.png'))
+        if MV_MODE:
+            start_time = time.time()
+            for k, v in image.items():
+                if check_box_rembg or v.mode == "RGB":
+                    img = rmbg_worker(v.convert("RGB"))
+                    image[k] = img
             time_meta["remove background"] = time.time() - start_time
+        else:
+            if check_box_rembg or image.mode == "RGB":
+                start_time = time.time()
+                image = rmbg_worker(image.convert("RGB"))
+                time_meta["remove background"] = time.time() - start_time
 
-    # remove disk io to make responding faster, uncomment at your will.
-    # image.save(os.path.join(save_folder, 'rembg.png'))
+        # remove disk io to make responding faster, uncomment at your will.
+        # image.save(os.path.join(save_folder, 'rembg.png'))
 
-    # image to white model
-    start_time = time.time()
+        # image to white model
+        start_time = time.time()
 
-    generator = torch.Generator()
-    generator = generator.manual_seed(int(seed))
-    outputs = i23d_worker(
-        image=image,
-        num_inference_steps=steps,
-        guidance_scale=guidance_scale,
-        generator=generator,
-        octree_resolution=octree_resolution,
-        num_chunks=num_chunks,
-        output_type="mesh",
-    )
-    time_meta["shape generation"] = time.time() - start_time
-    logger.info("---Shape generation takes %s seconds ---" % (time.time() - start_time))
+        generator = torch.Generator()
+        generator = generator.manual_seed(int(seed))
+        outputs = i23d_worker(
+            image=image,
+            num_inference_steps=steps,
+            guidance_scale=guidance_scale,
+            generator=generator,
+            octree_resolution=octree_resolution,
+            num_chunks=num_chunks,
+            output_type="mesh",
+        )
+        time_meta["shape generation"] = time.time() - start_time
+        logger.info(
+            "---Shape generation takes %s seconds ---" % (time.time() - start_time)
+        )
 
-    tmp_start = time.time()
-    mesh = export_to_trimesh(outputs)[0]
-    time_meta["export to trimesh"] = time.time() - tmp_start
+        tmp_start = time.time()
+        mesh = export_to_trimesh(outputs)[0]
+        time_meta["export to trimesh"] = time.time() - tmp_start
 
-    stats["number_of_faces"] = mesh.faces.shape[0]
-    stats["number_of_vertices"] = mesh.vertices.shape[0]
+        stats["number_of_faces"] = mesh.faces.shape[0]
+        stats["number_of_vertices"] = mesh.vertices.shape[0]
 
-    stats["time"] = time_meta
-    main_image = image if not MV_MODE else image["front"]
-    return mesh, main_image, save_folder, stats, seed
+        stats["time"] = time_meta
+        main_image = image if not MV_MODE else image["front"]
+        return mesh, main_image, save_folder, stats, seed
 
+    def get_app(self):
+        self.__setup_routes()
+        return self.__app
 
-def __generation_all(
-    caption=None,
-    image=None,
-    mv_image_front=None,
-    mv_image_back=None,
-    mv_image_left=None,
-    mv_image_right=None,
-    steps=50,
-    guidance_scale=7.5,
-    seed=1234,
-    octree_resolution=256,
-    check_box_rembg=False,
-    num_chunks=200000,
-    randomize_seed: bool = False,
-):
-    start_time_0 = time.time()
-    mesh, image, save_folder, stats, seed = __gen_shape(
-        caption,
-        image,
-        mv_image_front=mv_image_front,
-        mv_image_back=mv_image_back,
-        mv_image_left=mv_image_left,
-        mv_image_right=mv_image_right,
-        steps=steps,
-        guidance_scale=guidance_scale,
-        seed=seed,
-        octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        num_chunks=num_chunks,
-        randomize_seed=randomize_seed,
-    )
-    path = __export_mesh(mesh, save_folder, textured=False)
+    async def generate_api(self, payload: ImagePayload) -> JSONResponse:
+        try:
+            image = self.__decode_base64_image(payload.image)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    # tmp_time = time.time()
-    # mesh = floater_remove_worker(mesh)
-    # mesh = degenerate_face_remove_worker(mesh)
-    # logger.info("---Postprocessing takes %s seconds ---" % (time.time() - tmp_time))
-    # stats['time']['postprocessing'] = time.time() - tmp_time
+        start_time_0 = time.time()
+        mesh, image, save_folder, stats, _ = self.__gen_shape(
+            image=image,
+            randomize_seed=True,
+        )
 
-    tmp_time = time.time()
-    mesh = face_reduce_worker(mesh)
-    logger.info("---Face Reduction takes %s seconds ---" % (time.time() - tmp_time))
-    stats["time"]["face reduction"] = time.time() - tmp_time
+        tmp_time = time.time()
+        mesh = face_reduce_worker(mesh)
+        stats["time"]["face reduction"] = time.time() - tmp_time
 
-    tmp_time = time.time()
-    textured_mesh = texgen_worker(mesh, image)
-    logger.info("---Texture Generation takes %s seconds ---" % (time.time() - tmp_time))
-    stats["time"]["texture generation"] = time.time() - tmp_time
-    stats["time"]["total"] = time.time() - start_time_0
+        tmp_time = time.time()
+        textured_mesh = texgen_worker(mesh, image)
+        stats["time"]["texture generation"] = time.time() - tmp_time
+        stats["time"]["total"] = time.time() - start_time_0
 
-    textured_mesh.metadata["extras"] = stats
-    path_textured = __export_mesh(textured_mesh, save_folder, textured=True)
-    model_viewer_html_textured = __build_model_viewer_html(
-        save_folder, height=HTML_HEIGHT, width=HTML_WIDTH, textured=True
-    )
-    if args.low_vram_mode:
-        torch.cuda.empty_cache()
-    return (
-        gr.update(value=path),
-        gr.update(value=path_textured),
-        model_viewer_html_textured,
-        stats,
-        seed,
-    )
+        textured_mesh.metadata["extras"] = stats
+        path_textured = self.__export_mesh(textured_mesh, save_folder, textured=True)
 
+        if args.low_vram_mode:
+            torch.cuda.empty_cache()
 
-def shape_generation(
-    caption=None,
-    image=None,
-    mv_image_front=None,
-    mv_image_back=None,
-    mv_image_left=None,
-    mv_image_right=None,
-    steps=50,
-    guidance_scale=7.5,
-    seed=1234,
-    octree_resolution=256,
-    check_box_rembg=False,
-    num_chunks=200000,
-    randomize_seed: bool = False,
-):
-    start_time_0 = time.time()
-    mesh, image, save_folder, stats, seed = __gen_shape(
-        caption,
-        image,
-        mv_image_front=mv_image_front,
-        mv_image_back=mv_image_back,
-        mv_image_left=mv_image_left,
-        mv_image_right=mv_image_right,
-        steps=steps,
-        guidance_scale=guidance_scale,
-        seed=seed,
-        octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        num_chunks=num_chunks,
-        randomize_seed=randomize_seed,
-    )
-    print("MCC")
-    path = __export_mesh(mesh, save_folder, textured=False)
-
-    # tmp_time = time.time()
-    # mesh = floater_remove_worker(mesh)
-    # mesh = degenerate_face_remove_worker(mesh)
-    # logger.info("---Postprocessing takes %s seconds ---" % (time.time() - tmp_time))
-    # stats['time']['postprocessing'] = time.time() - tmp_time
-
-    tmp_time = time.time()
-    mesh = face_reduce_worker(mesh)
-    logger.info("---Face Reduction takes %s seconds ---" % (time.time() - tmp_time))
-    stats["time"]["face reduction"] = time.time() - tmp_time
-
-    tmp_time = time.time()
-    textured_mesh = texgen_worker(mesh, image)
-    logger.info("---Texture Generation takes %s seconds ---" % (time.time() - tmp_time))
-    stats["time"]["texture generation"] = time.time() - tmp_time
-    stats["time"]["total"] = time.time() - start_time_0
-
-    textured_mesh.metadata["extras"] = stats
-    path_textured = __export_mesh(textured_mesh, save_folder, textured=True)
-    model_viewer_html_textured = __build_model_viewer_html(
-        save_folder, height=HTML_HEIGHT, width=HTML_WIDTH, textured=True
-    )
-    torch.cuda.empty_cache()
-    return (
-        gr.update(value=path),
-        gr.update(value=path_textured),
-        model_viewer_html_textured,
-        stats,
-        seed,
-    )
-
-
-def shape_generation(
-    caption=None,
-    image=None,
-    mv_image_front=None,
-    mv_image_back=None,
-    mv_image_left=None,
-    mv_image_right=None,
-    steps=50,
-    guidance_scale=7.5,
-    seed=1234,
-    octree_resolution=256,
-    check_box_rembg=False,
-    num_chunks=200000,
-    randomize_seed: bool = False,
-):
-    print("DENNO")
-    start_time_0 = time.time()
-    mesh, image, save_folder, stats, seed = __gen_shape(
-        caption,
-        image,
-        mv_image_front=mv_image_front,
-        mv_image_back=mv_image_back,
-        mv_image_left=mv_image_left,
-        mv_image_right=mv_image_right,
-        steps=steps,
-        guidance_scale=guidance_scale,
-        seed=seed,
-        octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        num_chunks=num_chunks,
-        randomize_seed=randomize_seed,
-    )
-    stats["time"]["total"] = time.time() - start_time_0
-    mesh.metadata["extras"] = stats
-
-    path = __export_mesh(mesh, save_folder, textured=False)
-    model_viewer_html = __build_model_viewer_html(
-        save_folder, height=HTML_HEIGHT, width=HTML_WIDTH
-    )
-    if args.low_vram_mode:
-        torch.cuda.empty_cache()
-    return (
-        gr.update(value=path),
-        model_viewer_html,
-        stats,
-        seed,
-    )
+        try:
+            payload = {"user_id": payload.uuid}
+            file = {"file": open(path_textured, "rb")}
+            response = requests.post(
+                f"{DATABASE_BASE_URL}/save/model", data=payload, files=file
+            )
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=500, detail="Failed to save model to database."
+                )
+        except Exception as e:
+            print(e)
+            return {"error": str(e)}
+        # print(response.text)
+        return {"message": f"Model generated and saved successfully"}
+        # return FileResponse(path_textured)
 
 
 def replace_property_getter(instance, property_name, new_getter):
@@ -455,33 +268,41 @@ def replace_property_getter(instance, property_name, new_getter):
     return instance
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--model_path", type=str, default="tencent/Hunyuan3D-2mini")
+parser.add_argument("--subfolder", type=str, default="hunyuan3d-dit-v2-mini")
+parser.add_argument("--texgen_model_path", type=str, default="tencent/Hunyuan3D-2")
+parser.add_argument("-p", "--port", type=int, default=8080)
+parser.add_argument("--host", type=str, default="0.0.0.0")
+parser.add_argument("--device", type=str, default="cuda")
+parser.add_argument("--mc_algo", type=str, default="dmc")
+parser.add_argument("--cache-path", type=str, default="gradio_cache")
+parser.add_argument("--enable_t23d", action="store_true")
+parser.add_argument("--profile", type=str, default="3")
+parser.add_argument("--verbose", type=str, default="1")
+
+parser.add_argument("--disable_tex", action="store_true")
+parser.add_argument("--enable_flashvdm", action="store_true")
+parser.add_argument("--low-vram-mode", action="store_true")
+parser.add_argument("--compile", action="store_true")
+parser.add_argument("--mini", action="store_true")
+parser.add_argument("--turbo", action="store_true")
+parser.add_argument("--mv", action="store_true")
+parser.add_argument("--h2", action="store_true")
+
+parser.add_argument(
+    "-db",
+    "--database-endpoint",
+    type=str,
+    default="http://localhost:8000",
+    help="The endpoint of the database server.",
+)
+
+args = parser.parse_args()
+
+app = App(args.database_endpoint).get_app()
+
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="tencent/Hunyuan3D-2mini")
-    parser.add_argument("--subfolder", type=str, default="hunyuan3d-dit-v2-mini")
-    parser.add_argument("--texgen_model_path", type=str, default="tencent/Hunyuan3D-2")
-    parser.add_argument("-p", "--port", type=int, default=8080)
-    parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--mc_algo", type=str, default="dmc")
-    parser.add_argument("--cache-path", type=str, default="gradio_cache")
-    parser.add_argument("--enable_t23d", action="store_true")
-    parser.add_argument("--profile", type=str, default="3")
-    parser.add_argument("--verbose", type=str, default="1")
-
-    parser.add_argument("--disable_tex", action="store_true")
-    parser.add_argument("--enable_flashvdm", action="store_true")
-    parser.add_argument("--low-vram-mode", action="store_true")
-    parser.add_argument("--compile", action="store_true")
-    parser.add_argument("--mini", action="store_true")
-    parser.add_argument("--turbo", action="store_true")
-    parser.add_argument("--mv", action="store_true")
-    parser.add_argument("--h2", action="store_true")
-
-    args = parser.parse_args()
-
     if args.mini:
         args.model_path = "tencent/Hunyuan3D-2mini"
         args.subfolder = "hunyuan3d-dit-v2-mini"
@@ -552,7 +373,6 @@ if __name__ == "__main__":
         FaceReducer,
         FloaterRemover,
         DegenerateFaceRemover,
-        MeshSimplifier,
         Hunyuan3DDiTFlowMatchingPipeline,
     )
     from hy3dgen.shapegen.pipelines import export_to_trimesh
