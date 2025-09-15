@@ -39,6 +39,9 @@
           glib
         ]);
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+        shellHook = ''
+          export LD_LIBRARY_PATH=/run/opengl-driver/lib:/run/opengl-driver-32/lib:$LD_LIBRARY_PATH
+        '';
       };
     };
 }
