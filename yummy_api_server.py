@@ -1,32 +1,30 @@
-"""
-PLEASE READ README_ja_jp-APIの使い方
-"""
-
 import os
 import random
 import time
 from io import BytesIO
 
 import argparse
-import base64
+
+# import base64
 import gradio as gr
 import torch
 import uvicorn
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+
+# from pydantic import BaseModel
 from PIL import Image
 import requests
-from mmgp import offload
+from mmgp import offload, profile_type
 import uuid
 
 from hy3dgen.shapegen.utils import logger
 
 
-class ImagePayload(BaseModel):
-    uuid: str
-    image: str
+# class ImagePayload(BaseModel):
+#     uuid: str
+#     image: str
 
 
 class App:
@@ -40,6 +38,8 @@ class App:
             "/gradio_cache", StaticFiles(directory="gradio_cache"), name="gradio_cache"
         )
         self.__db_endpoint = db_endpoint
+
+        self.__setup_routes()
 
     def __setup_routes(self):
         self.__router.add_api_route(
@@ -56,17 +56,17 @@ class App:
         os.makedirs(save_folder, exist_ok=True)
         return save_folder
 
-    def __decode_base64_image(self, base64_string: str) -> Image.Image:
-        # "data:image/png;base64," のようなプレフィックスを削除
-        if "," in base64_string:
-            _, encoded = base64_string.split(",", 1)
-        else:
-            encoded = base64_string
-        try:
-            image_data = base64.b64decode(encoded)
-            return Image.open(BytesIO(image_data))
-        except Exception as e:
-            raise ValueError(f"Invalid base64 image: {e}")
+    # def __decode_base64_image(self, base64_string: str) -> Image.Image:
+    #     # "data:image/png;base64," のようなプレフィックスを削除
+    #     if "," in base64_string:
+    #         _, encoded = base64_string.split(",", 1)
+    #     else:
+    #         encoded = base64_string
+    #     try:
+    #         image_data = base64.b64decode(encoded)
+    #         return Image.open(BytesIO(image_data))
+    #     except Exception as e:
+    #         raise ValueError(f"Invalid base64 image: {e}")
 
     def __export_mesh(self, mesh, save_folder, textured=False, type="glb"):
         if textured:
@@ -146,10 +146,14 @@ class App:
         if image is None:
             start_time = time.time()
             try:
+                if t2i_worker is None:
+                    raise gr.Error(
+                        "Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
+                    )
                 image = t2i_worker(caption)
             except Exception:
                 raise gr.Error(
-                    f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
+                    "Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
                 )
             time_meta["text2image"] = time.time() - start_time
 
@@ -163,6 +167,9 @@ class App:
                     image[k] = img
             time_meta["remove background"] = time.time() - start_time
         else:
+            if not isinstance(image, Image.Image):
+                return None, None, None, None, None
+
             if check_box_rembg or image.mode == "RGB":
                 start_time = time.time()
                 image = rmbg_worker(image.convert("RGB"))
@@ -198,30 +205,52 @@ class App:
         stats["number_of_vertices"] = mesh.vertices.shape[0]
 
         stats["time"] = time_meta
-        main_image = image if not MV_MODE else image["front"]
+        main_image = (
+            image
+            if not MV_MODE
+            else image["front"]
+            if isinstance(image, dict) and ("front" in image)
+            else None
+        )
         return mesh, main_image, save_folder, stats, seed
 
     def get_app(self):
-        self.__setup_routes()
+        self.__app.include_router(self.__router)
         return self.__app
 
-    async def generate_api(self, payload: ImagePayload) -> JSONResponse:
-        try:
-            image = self.__decode_base64_image(payload.image)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
+    async def generate_api(self, user_id: str, image_file: UploadFile) -> JSONResponse:
         start_time_0 = time.time()
+        image = Image.open(BytesIO(await image_file.read())).convert("RGB")
         mesh, image, save_folder, stats, _ = self.__gen_shape(
             image=image,
             randomize_seed=True,
         )
+
+        if mesh is None:
+            return JSONResponse({"error": "Failed to generate mesh."}, status_code=500)
+
+        if image is None:
+            return JSONResponse({"error": "Failed to process image."}, status_code=500)
+
+        if save_folder is None:
+            return JSONResponse(
+                {"error": "Failed to create save folder."}, status_code=500
+            )
+
+        if stats is None:
+            return JSONResponse({"error": "Failed to generate stats."}, status_code=500)
 
         tmp_time = time.time()
         mesh = face_reduce_worker(mesh)
         stats["time"]["face reduction"] = time.time() - tmp_time
 
         tmp_time = time.time()
+
+        if texgen_worker is None:
+            return JSONResponse(
+                {"error": "Texture generator is not available."}, status_code=500
+            )
+
         textured_mesh = texgen_worker(mesh, image)
         stats["time"]["texture generation"] = time.time() - tmp_time
         stats["time"]["total"] = time.time() - start_time_0
@@ -233,10 +262,10 @@ class App:
             torch.cuda.empty_cache()
 
         try:
-            payload = {"user_id": payload.uuid}
+            payload = {"user_id": user_id}
             file = {"file": open(path_textured, "rb")}
             response = requests.post(
-                f"{DATABASE_BASE_URL}/save/model", data=payload, files=file
+                f"{self.__db_endpoint}/save/model", data=payload, files=file
             )
             if response.status_code != 200:
                 raise HTTPException(
@@ -244,10 +273,11 @@ class App:
                 )
         except Exception as e:
             print(e)
-            return {"error": str(e)}
-        # print(response.text)
-        return {"message": f"Model generated and saved successfully"}
-        # return FileResponse(path_textured)
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+        return JSONResponse(
+            {"message": "Model generated and saved successfully"}, status_code=200
+        )
 
 
 def replace_property_getter(instance, property_name, new_getter):
@@ -339,6 +369,7 @@ if __name__ == "__main__":
     SUPPORTED_FORMATS = ["glb", "obj", "ply", "stl"]
 
     HAS_TEXTUREGEN = False
+    texgen_worker = None
     if not args.disable_tex:
         try:
             from hy3dgen.texgen import Hunyuan3DPaintPipeline
@@ -361,6 +392,7 @@ if __name__ == "__main__":
             HAS_TEXTUREGEN = False
 
     HAS_T2I = False
+    t2i_worker = None
     if args.enable_t23d:
         from hy3dgen.text2image import HunyuanDiTPipeline
 
@@ -397,9 +429,9 @@ if __name__ == "__main__":
 
     profile = int(args.profile)
     kwargs = {}
-    replace_property_getter(i23d_worker, "_execution_device", lambda self: "cuda")
+    replace_property_getter(i23d_worker, "_execution_device", lambda _: "cuda")
     pipe = offload.extract_models("i23d_worker", i23d_worker)
-    if HAS_TEXTUREGEN:
+    if HAS_TEXTUREGEN and texgen_worker is not None:
         pipe.update(offload.extract_models("texgen_worker", texgen_worker))
         texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
     if HAS_T2I:
@@ -410,9 +442,11 @@ if __name__ == "__main__":
     if profile != 1 and profile != 3:
         kwargs["budgets"] = {"*": 2200}
     offload.default_verboseLevel = verboseLevel = int(args.verbose)
-    offload.profile(pipe, profile_no=profile, verboseLevel=int(args.verbose), **kwargs)
+    offload.profile(
+        pipe, profile_no=profile_type(profile), verboseLevel=int(args.verbose), **kwargs
+    )
 
     if args.low_vram_mode:
         torch.cuda.empty_cache()
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run("yummy_api_server:app", host=args.host, port=args.port)
