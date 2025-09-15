@@ -19,8 +19,6 @@ import uuid
 from hy3dgen.shapegen.utils import logger
 from hy3dgen.shapegen import (
     FaceReducer,
-    FloaterRemover,
-    DegenerateFaceRemover,
     Hunyuan3DDiTFlowMatchingPipeline,
 )
 from hy3dgen.shapegen.pipelines import export_to_trimesh
@@ -29,17 +27,101 @@ from hy3dgen.rembg import BackgroundRemover
 
 class App:
     MAX_SEED = int(1e7)
+    SUPPORTED_FORMATS = ["glb", "obj", "ply", "stl"]
 
-    def __init__(self, db_endpoint: str):
+    def __init__(self, args: argparse.Namespace):
+        torch.set_default_device("cpu")
+        self.__args = args
+
+        if self.__args.mini:
+            self.__args.model_path = "tencent/Hunyuan3D-2mini"
+            self.__args.subfolder = "hunyuan3d-dit-v2-mini"
+            self.__args.texgen_model_path = "tencent/Hunyuan3D-2"
+
+        if self.__args.mv:
+            self.__args.model_path = "tencent/Hunyuan3D-2mv"
+            self.__args.subfolder = "hunyuan3d-dit-v2-mv"
+            self.__args.texgen_model_path = "tencent/Hunyuan3D-2"
+
+        if self.__args.h2:
+            self.__args.model_path = "tencent/Hunyuan3D-2"
+            self.__args.subfolder = "hunyuan3d-dit-v2-0"
+            self.__args.texgen_model_path = "tencent/Hunyuan3D-2"
+
+        if self.__args.turbo:
+            self.__args.subfolder = self.__args.subfolder + "-turbo"
+            self.__args.enable_flashvdm = True
+
+        self.__save_dir = self.__args.cache_path
+        os.makedirs(self.__save_dir, exist_ok=True)
+
+        self.__mv_mode = "mv" in self.__args.model_path
         self.__router = APIRouter()
         self.__app = FastAPI()
         self.__app.mount("/assets", StaticFiles(directory="assets"), name="assets")
         self.__app.mount(
             "/gradio_cache", StaticFiles(directory="gradio_cache"), name="gradio_cache"
         )
-        self.__db_endpoint = db_endpoint
+        self.__db_endpoint = self.__args.database_endpoint
 
         self.__setup_routes()
+
+        self.__has_texturegen = False
+        self.__texturegen_worker = None
+        self.__load_texture_generator()
+
+        self.__has_t2i = False
+        self.__t2i_worker = None
+        self.__load_text2image()
+
+        self.__rmbg_worker = BackgroundRemover()
+        self.__i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
+            self.__args.model_path,
+            subfolder=self.__args.subfolder,
+            use_safetensors=True,
+            device=self.__args.device,
+        )
+
+        if self.__args.enable_flashvdm:
+            mc_algo = (
+                "mc" if self.__args.device in ["cpu", "mps"] else self.__args.mc_algo
+            )
+            self.__i23d_worker.enable_flashvdm(mc_algo=mc_algo)
+        if self.__args.compile:
+            self.__i23d_worker.compile()
+
+        self.__replace_property_getter(
+            self.__i23d_worker, "_execution_device", lambda _: "cuda"
+        )
+        self.__face_reduce_worker = FaceReducer()
+
+        pipe = offload.extract_models("i23d_worker", self.__i23d_worker)
+        if self.__has_texturegen and self.__texturegen_worker is not None:
+            pipe.update(
+                offload.extract_models("texgen_worker", self.__texturegen_worker)
+            )
+            self.__texturegen_worker.models[
+                "multiview_model"
+            ].pipeline.vae.use_slicing = True
+        if self.__has_t2i and self.__t2i_worker is not None:
+            pipe.update(offload.extract_models("t2i_worker", self.__t2i_worker))
+
+        profile = int(self.__args.profile)
+        kwargs = {}
+        if profile < 5:
+            kwargs["pinnedMemory"] = "i23d_worker/model"
+        if profile != 1 and profile != 3:
+            kwargs["budgets"] = {"*": 2200}
+        offload.default_verboseLevel = int(args.verbose)
+        offload.profile(
+            pipe,
+            profile_no=profile_type(profile),
+            verboseLevel=int(args.verbose),
+            **kwargs,
+        )
+
+        if args.low_vram_mode:
+            torch.cuda.empty_cache()
 
     def __setup_routes(self):
         self.__router.add_api_route(
@@ -48,6 +130,47 @@ class App:
             methods=["POST"],
             response_class=JSONResponse,
         )
+
+    def __load_texture_generator(self):
+        if not self.__args.disable_tex:
+            try:
+                from hy3dgen.texgen import Hunyuan3DPaintPipeline
+
+                self.__texturegen_worker = Hunyuan3DPaintPipeline.from_pretrained(
+                    self.__args.texgen_model_path
+                )
+                self.__has_texturegen = True
+            except Exception as e:
+                print(e)
+                print("Failed to load texture generator.")
+                print("Please try to install requirements by following README.md")
+                self.__has_texturegen = False
+
+    def __load_text2image(self):
+        if self.__args.enable_t23d:
+            from hy3dgen.text2image import HunyuanDiTPipeline
+
+            self.__t2i_worker = HunyuanDiTPipeline(
+                "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled"
+            )
+            self.__has_t2i = True
+
+    def __replace_property_getter(self, instance, property_name, new_getter):
+        # Get the original class and property
+        original_class = type(instance)
+        original_property = getattr(original_class, property_name)
+
+        # Create a custom subclass for this instance
+        custom_class = type(f"Custom{original_class.__name__}", (original_class,), {})
+
+        # Create a new property with the new getter but same setter
+        new_property = property(new_getter, original_property.fset)
+        setattr(custom_class, property_name, new_property)
+
+        # Change the instance's class
+        instance.__class__ = custom_class
+
+        return instance
 
     def __gen_save_folder(self):
         # a folder to save the generated files
@@ -88,9 +211,9 @@ class App:
         num_chunks=200000,
         randomize_seed: bool = False,
     ):
-        if not MV_MODE and image is None and caption is None:
+        if not self.__mv_mode and image is None and caption is None:
             raise gr.Error("Please provide either a caption or an image.")
-        if MV_MODE:
+        if self.__mv_mode:
             if (
                 mv_image_front is None
                 and mv_image_back is None
@@ -134,22 +257,22 @@ class App:
         if image is None:
             start_time = time.time()
             try:
-                if t2i_worker is None:
+                if self.__t2i_worker is None:
                     raise gr.Error(
                         "Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
                     )
-                image = t2i_worker(caption)
+                image = self.__t2i_worker(caption)
             except Exception:
                 raise gr.Error(
                     "Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`."
                 )
             time_meta["text2image"] = time.time() - start_time
 
-        if MV_MODE:
+        if self.__mv_mode:
             start_time = time.time()
             for k, v in image.items():
                 if check_box_rembg or v.mode == "RGB":
-                    img = rmbg_worker(v.convert("RGB"))
+                    img = self.__rmbg_worker(v.convert("RGB"))
                     image[k] = img
             time_meta["remove background"] = time.time() - start_time
         else:
@@ -158,7 +281,7 @@ class App:
 
             if check_box_rembg or image.mode == "RGB":
                 start_time = time.time()
-                image = rmbg_worker(image.convert("RGB"))
+                image = self.__rmbg_worker(image.convert("RGB"))
                 time_meta["remove background"] = time.time() - start_time
 
         # image to white model
@@ -166,7 +289,7 @@ class App:
 
         generator = torch.Generator()
         generator = generator.manual_seed(int(seed))
-        outputs = i23d_worker(
+        outputs = self.__i23d_worker(
             image=image,
             num_inference_steps=steps,
             guidance_scale=guidance_scale,
@@ -190,7 +313,7 @@ class App:
         stats["time"] = time_meta
         main_image = (
             image
-            if not MV_MODE
+            if not self.__mv_mode
             else image["front"]
             if isinstance(image, dict) and ("front" in image)
             else None
@@ -224,17 +347,17 @@ class App:
             return JSONResponse({"error": "Failed to generate stats."}, status_code=500)
 
         tmp_time = time.time()
-        mesh = face_reduce_worker(mesh)
+        mesh = self.__face_reduce_worker(mesh)
         stats["time"]["face reduction"] = time.time() - tmp_time
 
         tmp_time = time.time()
 
-        if texgen_worker is None:
+        if self.__texturegen_worker is None:
             return JSONResponse(
                 {"error": "Texture generator is not available."}, status_code=500
             )
 
-        textured_mesh = texgen_worker(mesh, image)
+        textured_mesh = self.__texturegen_worker(mesh, image)
         stats["time"]["texture generation"] = time.time() - tmp_time
         stats["time"]["total"] = time.time() - start_time_0
 
@@ -263,29 +386,11 @@ class App:
         )
 
 
-def replace_property_getter(instance, property_name, new_getter):
-    # Get the original class and property
-    original_class = type(instance)
-    original_property = getattr(original_class, property_name)
-
-    # Create a custom subclass for this instance
-    custom_class = type(f"Custom{original_class.__name__}", (original_class,), {})
-
-    # Create a new property with the new getter but same setter
-    new_property = property(new_getter, original_property.fset)
-    setattr(custom_class, property_name, new_property)
-
-    # Change the instance's class
-    instance.__class__ = custom_class
-
-    return instance
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", type=str, default="tencent/Hunyuan3D-2mini")
 parser.add_argument("--subfolder", type=str, default="hunyuan3d-dit-v2-mini")
 parser.add_argument("--texgen_model_path", type=str, default="tencent/Hunyuan3D-2")
-parser.add_argument("-p", "--port", type=int, default=8080)
+parser.add_argument("-p", "--port", type=int, default=8005)
 parser.add_argument("--host", type=str, default="0.0.0.0")
 parser.add_argument("--device", type=str, default="cuda")
 parser.add_argument("--mc_algo", type=str, default="dmc")
@@ -307,110 +412,12 @@ parser.add_argument(
     "-db",
     "--database-endpoint",
     type=str,
-    default="http://localhost:8000",
+    default="http://localhost:8001",
     help="The endpoint of the database server.",
 )
 
 args = parser.parse_args()
-
-app = App(args.database_endpoint).get_app()
+app = App(args).get_app()
 
 if __name__ == "__main__":
-    if args.mini:
-        args.model_path = "tencent/Hunyuan3D-2mini"
-        args.subfolder = "hunyuan3d-dit-v2-mini"
-        args.texgen_model_path = "tencent/Hunyuan3D-2"
-
-    if args.mv:
-        args.model_path = "tencent/Hunyuan3D-2mv"
-        args.subfolder = "hunyuan3d-dit-v2-mv"
-        args.texgen_model_path = "tencent/Hunyuan3D-2"
-
-    if args.h2:
-        args.model_path = "tencent/Hunyuan3D-2"
-        args.subfolder = "hunyuan3d-dit-v2-0"
-        args.texgen_model_path = "tencent/Hunyuan3D-2"
-
-    if args.turbo:
-        args.subfolder = args.subfolder + "-turbo"
-        args.enable_flashvdm = True
-
-    SAVE_DIR = args.cache_path
-    os.makedirs(SAVE_DIR, exist_ok=True)
-
-    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-    MV_MODE = "mv" in args.model_path
-    TURBO_MODE = "turbo" in args.subfolder
-
-    HTML_HEIGHT = 690 if MV_MODE else 650
-    HTML_WIDTH = 500
-
-    torch.set_default_device("cpu")
-
-    SUPPORTED_FORMATS = ["glb", "obj", "ply", "stl"]
-    HAS_TEXTUREGEN = False
-    texgen_worker = None
-    if not args.disable_tex:
-        try:
-            from hy3dgen.texgen import Hunyuan3DPaintPipeline
-
-            texgen_worker = Hunyuan3DPaintPipeline.from_pretrained(
-                args.texgen_model_path
-            )
-            HAS_TEXTUREGEN = True
-        except Exception as e:
-            print(e)
-            print("Failed to load texture generator.")
-            print("Please try to install requirements by following README.md")
-            HAS_TEXTUREGEN = False
-
-    HAS_T2I = False
-    t2i_worker = None
-    if args.enable_t23d:
-        from hy3dgen.text2image import HunyuanDiTPipeline
-
-        t2i_worker = HunyuanDiTPipeline(
-            "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled"
-        )
-        HAS_T2I = True
-
-    rmbg_worker = BackgroundRemover()
-    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-        args.model_path,
-        subfolder=args.subfolder,
-        use_safetensors=True,
-        device=args.device,
-    )
-    if args.enable_flashvdm:
-        mc_algo = "mc" if args.device in ["cpu", "mps"] else args.mc_algo
-        i23d_worker.enable_flashvdm(mc_algo=mc_algo)
-    if args.compile:
-        i23d_worker.compile()
-
-    floater_remove_worker = FloaterRemover()
-    degenerate_face_remove_worker = DegenerateFaceRemover()
-    face_reduce_worker = FaceReducer()
-
-    profile = int(args.profile)
-    kwargs = {}
-    replace_property_getter(i23d_worker, "_execution_device", lambda _: "cuda")
-    pipe = offload.extract_models("i23d_worker", i23d_worker)
-    if HAS_TEXTUREGEN and texgen_worker is not None:
-        pipe.update(offload.extract_models("texgen_worker", texgen_worker))
-        texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True
-    if HAS_T2I:
-        pipe.update(offload.extract_models("t2i_worker", t2i_worker))
-
-    if profile < 5:
-        kwargs["pinnedMemory"] = "i23d_worker/model"
-    if profile != 1 and profile != 3:
-        kwargs["budgets"] = {"*": 2200}
-    offload.default_verboseLevel = verboseLevel = int(args.verbose)
-    offload.profile(
-        pipe, profile_no=profile_type(profile), verboseLevel=int(args.verbose), **kwargs
-    )
-
-    if args.low_vram_mode:
-        torch.cuda.empty_cache()
-
     uvicorn.run("yummy_api_server:app", host=args.host, port=args.port)
