@@ -5,26 +5,26 @@ from io import BytesIO
 
 import argparse
 
-# import base64
 import gradio as gr
 import torch
 import uvicorn
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
-# from pydantic import BaseModel
 from PIL import Image
 import requests
 from mmgp import offload, profile_type
 import uuid
 
 from hy3dgen.shapegen.utils import logger
-
-
-# class ImagePayload(BaseModel):
-#     uuid: str
-#     image: str
+from hy3dgen.shapegen import (
+    FaceReducer,
+    FloaterRemover,
+    DegenerateFaceRemover,
+    Hunyuan3DDiTFlowMatchingPipeline,
+)
+from hy3dgen.shapegen.pipelines import export_to_trimesh
+from hy3dgen.rembg import BackgroundRemover
 
 
 class App:
@@ -55,18 +55,6 @@ class App:
         save_folder = os.path.join("gradio_cache", folder_name)
         os.makedirs(save_folder, exist_ok=True)
         return save_folder
-
-    # def __decode_base64_image(self, base64_string: str) -> Image.Image:
-    #     # "data:image/png;base64," のようなプレフィックスを削除
-    #     if "," in base64_string:
-    #         _, encoded = base64_string.split(",", 1)
-    #     else:
-    #         encoded = base64_string
-    #     try:
-    #         image_data = base64.b64decode(encoded)
-    #         return Image.open(BytesIO(image_data))
-    #     except Exception as e:
-    #         raise ValueError(f"Invalid base64 image: {e}")
 
     def __export_mesh(self, mesh, save_folder, textured=False, type="glb"):
         if textured:
@@ -157,8 +145,6 @@ class App:
                 )
             time_meta["text2image"] = time.time() - start_time
 
-        # remove disk io to make responding faster, uncomment at your will.
-        # image.save(os.path.join(save_folder, 'input.png'))
         if MV_MODE:
             start_time = time.time()
             for k, v in image.items():
@@ -174,9 +160,6 @@ class App:
                 start_time = time.time()
                 image = rmbg_worker(image.convert("RGB"))
                 time_meta["remove background"] = time.time() - start_time
-
-        # remove disk io to make responding faster, uncomment at your will.
-        # image.save(os.path.join(save_folder, 'rembg.png'))
 
         # image to white model
         start_time = time.time()
@@ -363,11 +346,8 @@ if __name__ == "__main__":
     HTML_WIDTH = 500
 
     torch.set_default_device("cpu")
-    # try:
-    #     from hy3dgen.texgen import Hunyuan3DPaintPipeline
 
     SUPPORTED_FORMATS = ["glb", "obj", "ply", "stl"]
-
     HAS_TEXTUREGEN = False
     texgen_worker = None
     if not args.disable_tex:
@@ -377,13 +357,6 @@ if __name__ == "__main__":
             texgen_worker = Hunyuan3DPaintPipeline.from_pretrained(
                 args.texgen_model_path
             )
-            # texgen_worker.enable_model_cpu_offload()
-            # Not help much, ignore for now.
-            # if args.compile:
-            #     texgen_worker.models['delight_model'].pipeline.unet.compile()
-            #     texgen_worker.models['delight_model'].pipeline.vae.compile()
-            #     texgen_worker.models['multiview_model'].pipeline.unet.compile()
-            #     texgen_worker.models['multiview_model'].pipeline.vae.compile()
             HAS_TEXTUREGEN = True
         except Exception as e:
             print(e)
@@ -400,15 +373,6 @@ if __name__ == "__main__":
             "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled"
         )
         HAS_T2I = True
-
-    from hy3dgen.shapegen import (
-        FaceReducer,
-        FloaterRemover,
-        DegenerateFaceRemover,
-        Hunyuan3DDiTFlowMatchingPipeline,
-    )
-    from hy3dgen.shapegen.pipelines import export_to_trimesh
-    from hy3dgen.rembg import BackgroundRemover
 
     rmbg_worker = BackgroundRemover()
     i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
