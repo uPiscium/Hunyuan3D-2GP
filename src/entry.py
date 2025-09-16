@@ -420,4 +420,4 @@ args = parser.parse_args()
 app = App(args).get_app()
 
 if __name__ == "__main__":
-    uvicorn.run("yummy_api_server:app", host=args.host, port=args.port)
+    uvicorn.run("entry:app", host=args.host, port=args.port)
