@@ -412,7 +412,7 @@ parser.add_argument(
     "-db",
     "--database-endpoint",
     type=str,
-    default="http://localhost:8001",
+    default="http://192.168.11.129:8001",
     help="The endpoint of the database server.",
 )
 
