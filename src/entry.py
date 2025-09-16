@@ -373,6 +373,7 @@ class App:
         try:
             payload = {"user_id": user_id}
             file = {"file": open(path_textured, "rb")}
+            print("Uploading model...")
             response = requests.post(
                 f"{self.__db_endpoint}/save/model", data=payload, files=file
             )
