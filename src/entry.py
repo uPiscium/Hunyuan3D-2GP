@@ -8,7 +8,7 @@ import argparse
 import gradio as gr
 import torch
 import uvicorn
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, Form, File
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
@@ -324,9 +324,12 @@ class App:
         self.__app.include_router(self.__router)
         return self.__app
 
-    async def generate_api(self, user_id: str, image_file: UploadFile) -> JSONResponse:
+    async def generate_api(
+        self, user_id: str = Form(...), file: UploadFile = File(...)
+    ) -> JSONResponse:
         start_time_0 = time.time()
-        image = Image.open(BytesIO(await image_file.read())).convert("RGB")
+        byte = await file.read()
+        image = Image.open(BytesIO(byte)).convert("RGB")
         mesh, image, save_folder, stats, _ = self.__gen_shape(
             image=image,
             randomize_seed=True,
