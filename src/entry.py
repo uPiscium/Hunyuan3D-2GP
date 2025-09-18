@@ -375,10 +375,9 @@ class App:
 
         try:
             payload = {"user_id": user_id}
-            file = {"file": open(path_textured, "rb")}
-            print("Uploading model...")
+            files = {"file": open(path_textured, "rb")}
             response = requests.post(
-                f"{self.__db_endpoint}/save/model", data=payload, files=file
+                f"{self.__db_endpoint}/save/model", data=payload, files=files
             )
             if response.status_code != 200:
                 raise HTTPException(
