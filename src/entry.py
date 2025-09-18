@@ -130,6 +130,9 @@ class App:
             methods=["POST"],
             response_class=JSONResponse,
         )
+        self.__router.add_api_route(
+            "/ping", self.ping, methods=["GET"], response_class=JSONResponse
+        )
 
     def __load_texture_generator(self):
         if not self.__args.disable_tex:
@@ -388,6 +391,10 @@ class App:
         return JSONResponse(
             {"message": "Model generated and saved successfully"}, status_code=200
         )
+
+    # /ping
+    async def ping(self):
+        return JSONResponse({"message": "pong"}, status_code=200)
 
 
 parser = argparse.ArgumentParser()
