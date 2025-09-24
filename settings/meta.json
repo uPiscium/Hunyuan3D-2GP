@@ -1,11 +1,5 @@
 {
     "use_t23d": false,
-    "stable_diffusion": {
-        "model": "runwayml/stable-diffusion-v1-5",
-        "lora": "michecosta/food_mic",
-        "prompt_template": "A high quality food photo of a {food}, 1 {food}, centered composition, isolated, front view, white background",
-        "negative_prompt": "plate, dish, bowl, utensils, table, fork, spoon, chopsticks, text, hands, multiple objects"
-    },
     "hunyuan3d": {
         "max_seed": 1e7,
         "supported_formats": ["glb", "obj", "ply", "stl"],
