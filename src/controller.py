@@ -20,7 +20,6 @@ from hy3dgen.rembg import BackgroundRemover
 
 class Hunyuan3DController:
     def __init__(self, config: dict):
-        torch.set_default_device("cpu")
         self.__config = config.get("hunyuan3d", {})
 
         self.__seed = self.__config.get("seed", 0)

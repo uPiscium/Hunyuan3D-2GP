@@ -3,12 +3,11 @@ import requests
 
 from PIL import Image
 from io import BytesIO
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Form, UploadFile, File
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from controller.hunyuan3d import Hunyuan3DController
-from controller.stable_diffusion import StableDiffusionController
+from controller import Hunyuan3DController
 
 
 class UserRequest(BaseModel):
@@ -25,21 +24,26 @@ class App:
             "control", "http://localhost:8000"
         )
         self.__hunyuan3D_controller = Hunyuan3DController(config)
-        self.__stable_diffusion_controller = StableDiffusionController(
-            config, self.__debug
-        )
         self.__router = APIRouter()
         self.__app = FastAPI()
 
         self.__setup_routes()
 
     def __setup_routes(self):
-        self.__router.add_api_route(
-            "/generate",
-            self.generate,
-            methods=["POST"],
-            response_class=JSONResponse,
-        )
+        if self.__config.get("use_t23d", True):
+            self.__router.add_api_route(
+                "/generate",
+                self.generate_by_prompt,
+                methods=["POST"],
+                response_class=JSONResponse,
+            )
+        else:
+            self.__router.add_api_route(
+                "/generate",
+                self.generate_by_image,
+                methods=["POST"],
+                response_class=JSONResponse,
+            )
         self.__router.add_api_route(
             "/ping", self.ping, methods=["GET"], response_class=JSONResponse
         )
@@ -97,23 +101,33 @@ class App:
         asyncio.create_task(self.__save_image(user_id=request.user_id, image=image))
         asyncio.create_task(self.__save_model(user_id=request.user_id, path=path))
 
-    async def __generate_with_separate_models(self, request: UserRequest) -> None:
-        image = await self.__stable_diffusion_controller.generate(request.prompt)
+    async def __generate_with_separate_models(
+        self, user_id: str = Form(...), file: UploadFile = File(...)
+    ) -> None:
+        byte = await file.read()
+        image = Image.open(BytesIO(byte)).convert("RGB")
         path, _ = await self.__hunyuan3D_controller.generate(image=image)
 
-        asyncio.create_task(self.__save_image(user_id=request.user_id, image=image))
-        asyncio.create_task(self.__save_model(user_id=request.user_id, path=path))
+        asyncio.create_task(self.__save_image(user_id=user_id, image=image))
+        asyncio.create_task(self.__save_model(user_id=user_id, path=path))
 
     def get_app(self):
         self.__app.include_router(self.__router)
         return self.__app
 
     # /generate
-    async def generate(self, request: UserRequest) -> JSONResponse:
-        if self.__config.get("use_t23d", False):
-            await self.__generate_with_t23d(request)
-        else:
-            await self.__generate_with_separate_models(request)
+    async def generate_by_prompt(self, request: UserRequest) -> JSONResponse:
+        await self.__generate_with_t23d(request)
+        return JSONResponse(
+            {"message": "Model and image generation completed."},
+            status_code=200,
+        )
+
+    # /generate
+    async def generate_by_image(
+        self, user_id: str = Form(...), file: UploadFile = File(...)
+    ) -> JSONResponse:
+        await self.__generate_with_separate_models(user_id, file)
         return JSONResponse(
             {"message": "Model and image generation completed."},
             status_code=200,
