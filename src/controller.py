@@ -22,9 +22,9 @@ class Hunyuan3DController:
     def __init__(self, config: dict):
         self.__config = config.get("hunyuan3d", {})
 
-        self.__seed = self.__config.get("seed", 0)
+        self.__seed = int(self.__config.get("seed", 0))
         self.__random_seed = self.__config.get("random_seed", False)
-        self.__max_seed = self.__config.get("max_seed", 1e7)
+        self.__max_seed = int(self.__config.get("max_seed", 1e7))
         self.__model_path = self.__config.get("model", "tencent/Hunyuan3D-2mini")
         self.__subfolder = self.__config.get("subfolder", "hunyuan3d-dit-v2-mini")
         self.__texgen_model_path = self.__config.get("texgen", "tencent/Hunyuan3D-2")
