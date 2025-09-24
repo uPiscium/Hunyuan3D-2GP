@@ -168,3 +168,4 @@ gradio_cache/
 #.idea/
 
 .direnv
+debug_dump.png

@@ -1,0 +1,35 @@
+{
+    "use_t23d": false,
+    "stable_diffusion": {
+        "model": "runwayml/stable-diffusion-v1-5",
+        "lora": "michecosta/food_mic",
+        "prompt_template": "A high quality food photo of a {food}, 1 {food}, centered composition, isolated, front view, white background",
+        "negative_prompt": "plate, dish, bowl, utensils, table, fork, spoon, chopsticks, text, hands, multiple objects"
+    },
+    "hunyuan3d": {
+        "max_seed": 1e7,
+        "supported_formats": ["glb", "obj", "ply", "stl"],
+        "model": "tencent/Hunyuan3D-2mini",
+        "subfolder": "hunyuan3d-dit-v2-mini",
+        "texgen": "tencent/Hunyuan3D-2",
+        "device": "cuda",
+        "mc_algo": "dmc",
+        "cache_path": "gradio_cache",
+        "profile": 3,
+        "verbose": 1,
+        "enable_t23d": false,
+        "enable_flashvdm": false,
+        "disable_tex": false,
+        "low_vram_mode": false,
+        "compile": false,
+        "mini": false,
+        "turbo": false,
+        "mv": false,
+        "h2": false,
+        "random_seed": true,
+        "seed": 0
+    },
+    "endpoints": {
+        "control": "http://192.168.11.129:8000"
+    }
+}
