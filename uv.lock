@@ -479,7 +479,6 @@ dependencies = [
     { name = "omegaconf" },
     { name = "opencv-python" },
     { name = "peft" },
-    { name = "pert" },
     { name = "pybind11" },
     { name = "pydantic" },
     { name = "pygltflib" },
@@ -529,7 +528,6 @@ requires-dist = [
     { name = "onnxruntime", marker = "extra == 'bg'" },
     { name = "opencv-python", specifier = ">=4.12.0.88" },
     { name = "peft", specifier = ">=0.17.1" },
-    { name = "pert", specifier = ">=2019.11" },
     { name = "pybind11" },
     { name = "pydantic", specifier = ">=2.7,<2.10" },
     { name = "pygltflib" },
@@ -1143,15 +1141,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/70/b8/2e79377efaa1e5f0d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/fe/a2da1627aa9cb6310b6034598363bd26ac301c4a99d21f415b1b2855891e/peft-0.17.1-py3-none-any.whl", hash = "sha256:3d129d64def3d74779c32a080d2567e5f7b674e77d546e3585138216d903f99e", size = 504896, upload-time = "2025-08-21T09:25:18.974Z" },
 ]
-
-[[package]]
-name = "pert"
-version = "2019.11"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a3/9c/0fc1104f32d5786aef112d70dbaf6522e7a7e53144bda4d9cb0806f64cc7/pert-2019.11.tar.gz", hash = "sha256:5d6cc356702ba798384efa717bbc3c433ad342f949cbbdaf2f5e32da8bf8e335", size = 6276, upload-time = "2019-11-08T11:46:39.644Z" }
 
 [[package]]
 name = "pillow"
