@@ -1,10 +1,15 @@
 {
     "use_t23d": false,
+    "steps": 30,
+    "guidance_scale": 7.5,
+    "octree_resolution": 128,
+    "remove_bg": false,
+    "chunks": 400000,
     "hunyuan3d": {
         "max_seed": 1e7,
         "supported_formats": ["glb", "obj", "ply", "stl"],
         "model": "tencent/Hunyuan3D-2mini",
-        "subfolder": "hunyuan3d-dit-v2-mini",
+        "subfolder": "hunyuan3d-dit-v2-mini-fast",
         "texgen": "tencent/Hunyuan3D-2",
         "device": "cuda",
         "mc_algo": "dmc",

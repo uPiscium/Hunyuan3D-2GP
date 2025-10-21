@@ -14,6 +14,7 @@ class UserRequest(BaseModel):
 
 class App:
     def __init__(self, config: dict):
+        self.__config = config
         self.__hunyuan3D_controller = Hunyuan3DController(config)
         self.__router = APIRouter()
         self.__app = FastAPI()
@@ -36,7 +37,19 @@ class App:
     ) -> FileResponse:
         byte = await file.read()
         image = Image.open(BytesIO(byte)).convert("RGB")
-        path, _ = await self.__hunyuan3D_controller.generate(image=image)
+        steps: int = int(self.__config.get("steps", 50))
+        gscale: float = self.__config.get("guidance_scale", 7.5)
+        ores: int = int(self.__config.get("octree_resolution", 256))
+        rembg: bool = self.__config.get("remove_bg", False)
+        chunks: int = int(self.__config.get("chunks", 200000))
+        path, _ = await self.__hunyuan3D_controller.generate(
+            image=image,
+            steps=steps,
+            guidance_scale=gscale,
+            octree_resolution=ores,
+            check_box_rembg=rembg,
+            num_chunks=chunks,
+        )
         return FileResponse(
             path, media_type="application/octet-stream", filename="output.glb"
         )

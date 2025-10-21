@@ -20,6 +20,7 @@ from hy3dgen.rembg import BackgroundRemover
 
 class Hunyuan3DController:
     def __init__(self, config: dict):
+        torch.set_grad_enabled(False)
         self.__config = config.get("hunyuan3d", {})
 
         self.__seed = int(self.__config.get("seed", 0))
@@ -219,7 +220,6 @@ class Hunyuan3DController:
 
         seed = int(self.__get_seed())
 
-        octree_resolution = int(octree_resolution)
         if caption:
             print("[INFO] prompt is", caption)
         save_folder = self.__gen_save_folder()
@@ -271,12 +271,13 @@ class Hunyuan3DController:
             generator=generator,
             octree_resolution=octree_resolution,
             num_chunks=num_chunks,
-            output_type="mesh",
+            output_type="custom",  # ignore trimesh process
         )
-        print(f"[INFO] Shape generation takes {time.time() - start_time:.6f} seconds.")
 
         mesh = export_to_trimesh(outputs)[0]
-        mesh = self.__face_reducer(mesh)
+        print("[INFO] Export to tri-mesh")
+        mesh = self.__face_reducer(mesh, 20000)
+        print("[INFO] Face reducer execution completed.")
 
         main_image = (
             converted_image
@@ -290,6 +291,10 @@ class Hunyuan3DController:
             if self.__texturegen_worker
             else mesh
         )
+        print("[INFO] Texture generation completed")
+
         path = self.__export(mesh, save_folder, textured=True)
+        print("[INFO] Export model")
+        print(f"[INFO] Generation takes {time.time() - start_time:.6f} seconds.")
 
         return path, main_image

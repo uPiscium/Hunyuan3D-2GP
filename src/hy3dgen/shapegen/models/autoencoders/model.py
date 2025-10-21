@@ -19,42 +19,46 @@ import torch.nn as nn
 import yaml
 
 from .attention_blocks import FourierEmbedder, Transformer, CrossAttentionDecoder
-from .surface_extractors import MCSurfaceExtractor, SurfaceExtractors
-from .volume_decoders import VanillaVolumeDecoder, FlashVDMVolumeDecoding, HierarchicalVolumeDecoding
+from .surface_extractors import SurfaceExtractors, MCSurfaceExtractor
+from .volume_decoders import (
+    VanillaVolumeDecoder,
+    FlashVDMVolumeDecoding,
+    HierarchicalVolumeDecoding,
+)
 from ...utils import logger, synchronize_timer, smart_load_model
 
 
 class VectsetVAE(nn.Module):
-
     @classmethod
-    @synchronize_timer('VectsetVAE Model Loading')
+    @synchronize_timer("VectsetVAE Model Loading")
     def from_single_file(
         cls,
         ckpt_path,
         config_path,
-        device='cuda',
+        device="cuda",
         dtype=torch.float16,
         use_safetensors=None,
         **kwargs,
     ):
         # load config
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
         # load ckpt
         if use_safetensors:
-            ckpt_path = ckpt_path.replace('.ckpt', '.safetensors')
+            ckpt_path = ckpt_path.replace(".ckpt", ".safetensors")
         if not os.path.exists(ckpt_path):
             raise FileNotFoundError(f"Model file {ckpt_path} not found")
 
         logger.info(f"Loading model from {ckpt_path}")
         if use_safetensors:
             import safetensors.torch
-            ckpt = safetensors.torch.load_file(ckpt_path, device='cpu')
-        else:
-            ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=True)
 
-        model_kwargs = config['params']
+            ckpt = safetensors.torch.load_file(ckpt_path, device="cpu")
+        else:
+            ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+
+        model_kwargs = config["params"]
         model_kwargs.update(kwargs)
 
         model = cls(**model_kwargs)
@@ -66,18 +70,18 @@ class VectsetVAE(nn.Module):
     def from_pretrained(
         cls,
         model_path,
-        device='cuda',
+        device="cuda",
         dtype=torch.float16,
         use_safetensors=True,
-        variant='fp16',
-        subfolder='hunyuan3d-vae-v2-0',
+        variant="fp16",
+        subfolder="hunyuan3d-vae-v2-0",
         **kwargs,
     ):
         config_path, ckpt_path = smart_load_model(
             model_path,
             subfolder=subfolder,
             use_safetensors=use_safetensors,
-            variant=variant
+            variant=variant,
         )
 
         return cls.from_single_file(
@@ -86,14 +90,10 @@ class VectsetVAE(nn.Module):
             device=device,
             dtype=dtype,
             use_safetensors=use_safetensors,
-            **kwargs
+            **kwargs,
         )
 
-    def __init__(
-        self,
-        volume_decoder=None,
-        surface_extractor=None
-    ):
+    def __init__(self, volume_decoder=None, surface_extractor=None):
         super().__init__()
         if volume_decoder is None:
             volume_decoder = VanillaVolumeDecoder()
@@ -103,9 +103,9 @@ class VectsetVAE(nn.Module):
         self.surface_extractor = surface_extractor
 
     def latents2mesh(self, latents: torch.FloatTensor, **kwargs):
-        with synchronize_timer('Volume decoding'):
+        with synchronize_timer("Volume decoding"):
             grid_logits = self.volume_decoder(latents, self.geo_decoder, **kwargs)
-        with synchronize_timer('Surface extraction'):
+        with synchronize_timer("Surface extraction"):
             outputs = self.surface_extractor(grid_logits, **kwargs)
         return outputs
 
@@ -113,8 +113,8 @@ class VectsetVAE(nn.Module):
         self,
         enabled: bool = True,
         adaptive_kv_selection=True,
-        topk_mode='mean',
-        mc_algo='dmc',
+        topk_mode="mean",
+        mc_algo="dmc",
     ):
         if enabled:
             if adaptive_kv_selection:
@@ -122,7 +122,9 @@ class VectsetVAE(nn.Module):
             else:
                 self.volume_decoder = HierarchicalVolumeDecoding()
             if mc_algo not in SurfaceExtractors.keys():
-                raise ValueError(f'Unsupported mc_algo {mc_algo}, available: {list(SurfaceExtractors.keys())}')
+                raise ValueError(
+                    f"Unsupported mc_algo {mc_algo}, available: {list(SurfaceExtractors.keys())}"
+                )
             self.surface_extractor = SurfaceExtractors[mc_algo]()
         else:
             self.volume_decoder = VanillaVolumeDecoder()
@@ -152,7 +154,9 @@ class ShapeVAE(VectsetVAE):
         super().__init__()
         self.geo_decoder_ln_post = geo_decoder_ln_post
 
-        self.fourier_embedder = FourierEmbedder(num_freqs=num_freqs, include_pi=include_pi)
+        self.fourier_embedder = FourierEmbedder(
+            num_freqs=num_freqs, include_pi=include_pi
+        )
 
         self.post_kl = nn.Linear(embed_dim, width)
 
@@ -163,7 +167,7 @@ class ShapeVAE(VectsetVAE):
             heads=heads,
             qkv_bias=qkv_bias,
             qk_norm=qk_norm,
-            drop_path_rate=drop_path_rate
+            drop_path_rate=drop_path_rate,
         )
 
         self.geo_decoder = CrossAttentionDecoder(
