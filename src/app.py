@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 
 from controller import Hunyuan3DController
+import json
 
 
 class UserRequest(BaseModel):
@@ -23,13 +24,16 @@ class App:
 
     def __setup_routes(self):
         self.__router.add_api_route(
-            "/generate",
+            "/process",
             self.generate_by_image,
             methods=["POST"],
             response_class=JSONResponse,
         )
         self.__router.add_api_route(
             "/ping", self.ping, methods=["GET"], response_class=JSONResponse
+        )
+        self.__router.add_api_route(
+            "/config", self.config, methods=["PATCH"], response_class=JSONResponse
         )
 
     async def __generate_with_separate_models(
@@ -58,10 +62,20 @@ class App:
         self.__app.include_router(self.__router)
         return self.__app
 
-    # /generate
+    # /process
     async def generate_by_image(self, file: UploadFile = File(...)) -> FileResponse:
         return await self.__generate_with_separate_models(file)
 
     # /ping
     async def ping(self):
         return JSONResponse({"message": "pong"}, status_code=200)
+
+    # /config
+    async def config(self):
+        try:
+            CONFIG_PATH = "settings/meta.json"
+            with open(CONFIG_PATH, "r") as f:
+                self.__config = json.load(f)
+            return JSONResponse({"config": self.__config}, status_code=200)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
