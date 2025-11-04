@@ -1,8 +1,11 @@
 from PIL import Image
 from io import BytesIO
-from fastapi import FastAPI, APIRouter, UploadFile, File
+from fastapi import FastAPI, APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
+from concurrent.futures import ThreadPoolExecutor
+import requests
+
 
 from controller import Hunyuan3DController
 import json
@@ -19,6 +22,11 @@ class App:
         self.__hunyuan3D_controller = Hunyuan3DController(config)
         self.__router = APIRouter()
         self.__app = FastAPI()
+        self.__executor = ThreadPoolExecutor()
+
+        self.__db = self.__config.get("endpoints", {}).get(
+            "db", "http://localhost:8000"
+        )
 
         self.__setup_routes()
 
@@ -36,17 +44,14 @@ class App:
             "/config", self.config, methods=["PATCH"], response_class=JSONResponse
         )
 
-    async def __generate_with_separate_models(
-        self, file: UploadFile = File(...)
-    ) -> FileResponse:
-        byte = await file.read()
+    def __generate_with_separate_models(self, user_id: str, byte: bytes) -> None:
         image = Image.open(BytesIO(byte)).convert("RGB")
         steps: int = int(self.__config.get("steps", 50))
         gscale: float = self.__config.get("guidance_scale", 7.5)
         ores: int = int(self.__config.get("octree_resolution", 256))
         rembg: bool = self.__config.get("remove_bg", False)
         chunks: int = int(self.__config.get("chunks", 200000))
-        path, _ = await self.__hunyuan3D_controller.generate(
+        path, _ = self.__hunyuan3D_controller.generate(
             image=image,
             steps=steps,
             guidance_scale=gscale,
@@ -54,8 +59,14 @@ class App:
             check_box_rembg=rembg,
             num_chunks=chunks,
         )
-        return FileResponse(
-            path, media_type="application/octet-stream", filename="output.glb"
+
+        payload = {"user_id": user_id}
+        files = {"file": open(path, "rb")}
+
+        _ = requests.post(
+            f"{self.__db}/upload/model",
+            data=payload,
+            files=files,
         )
 
     def get_app(self):
@@ -63,8 +74,12 @@ class App:
         return self.__app
 
     # /process
-    async def generate_by_image(self, file: UploadFile = File(...)) -> FileResponse:
-        return await self.__generate_with_separate_models(file)
+    async def generate_by_image(
+        self, user_id: str = Form(...), file: UploadFile = File(...)
+    ) -> JSONResponse:
+        byte = await file.read()
+        self.__executor.submit(self.__generate_with_separate_models, user_id, byte)
+        return JSONResponse({"message": "Model generation submitted."}, status_code=200)
 
     # /ping
     async def ping(self):

@@ -1,34 +1,34 @@
 {
-    "use_t23d": false,
-    "steps": 30,
-    "guidance_scale": 7.5,
-    "octree_resolution": 128,
-    "remove_bg": false,
-    "chunks": 400000,
-    "hunyuan3d": {
-        "max_seed": 1e7,
-        "supported_formats": ["glb", "obj", "ply", "stl"],
-        "model": "tencent/Hunyuan3D-2mini",
-        "subfolder": "hunyuan3d-dit-v2-mini-fast",
-        "texgen": "tencent/Hunyuan3D-2",
-        "device": "cuda",
-        "mc_algo": "dmc",
-        "cache_path": "gradio_cache",
-        "profile": 3,
-        "verbose": 1,
-        "enable_t23d": false,
-        "enable_flashvdm": false,
-        "disable_tex": false,
-        "low_vram_mode": false,
-        "compile": false,
-        "mini": false,
-        "turbo": false,
-        "mv": false,
-        "h2": false,
-        "random_seed": true,
-        "seed": 0
-    },
-    "endpoints": {
-        "control": "http://192.168.11.129:8000"
-    }
+  "use_t23d": false,
+  "steps": 30,
+  "guidance_scale": 7.5,
+  "octree_resolution": 128,
+  "remove_bg": false,
+  "chunks": 400000,
+  "hunyuan3d": {
+    "max_seed": 1e7,
+    "supported_formats": ["glb", "obj", "ply", "stl"],
+    "model": "tencent/Hunyuan3D-2mini",
+    "subfolder": "hunyuan3d-dit-v2-mini-fast",
+    "texgen": "tencent/Hunyuan3D-2",
+    "device": "cuda:1",
+    "mc_algo": "dmc",
+    "cache_path": "gradio_cache",
+    "profile": 3,
+    "verbose": 1,
+    "enable_t23d": false,
+    "enable_flashvdm": false,
+    "disable_tex": false,
+    "low_vram_mode": false,
+    "compile": false,
+    "mini": false,
+    "turbo": false,
+    "mv": false,
+    "h2": false,
+    "random_seed": true,
+    "seed": 0
+  },
+  "endpoints": {
+    "db": "http://localhost:8002"
+  }
 }

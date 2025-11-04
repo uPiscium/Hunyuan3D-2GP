@@ -31,7 +31,7 @@ class Hunyuan3DController:
         self.__model_path = self.__config.get("model", "tencent/Hunyuan3D-2mini")
         self.__subfolder = self.__config.get("subfolder", "hunyuan3d-dit-v2-mini")
         self.__texgen_model_path = self.__config.get("texgen", "tencent/Hunyuan3D-2")
-        self.__device = self.__config.get("device", "cuda")
+        self.__device = self.__config.get("device", "cuda:1")
         self.__mc_algo = self.__config.get("mc_algo", "dmc")
         self.__save_dir = self.__config.get("cache_path", "gradio_cache")
         self.__profile = self.__config.get("profile", "3")
@@ -125,7 +125,7 @@ class Hunyuan3DController:
         custom_class = type(f"Custom{original_class.__name__}", (original_class,), {})
 
         # Create a new property with the new getter but same setter
-        new_property = property(lambda _: "cuda", original_property.fset)
+        new_property = property(lambda _: "cuda:1", original_property.fset)
         setattr(custom_class, property_name, new_property)
 
         # Change the instance's class
@@ -218,7 +218,7 @@ class Hunyuan3DController:
             seed = random.randint(0, self.__max_seed)
         return seed
 
-    async def generate(
+    def generate(
         self,
         caption: str | None = None,
         image: dict[str, Image.Image | None] | Image.Image | None = None,
