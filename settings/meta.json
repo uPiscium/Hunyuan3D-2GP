@@ -11,7 +11,7 @@
     "model": "tencent/Hunyuan3D-2mini",
     "subfolder": "hunyuan3d-dit-v2-mini-fast",
     "texgen": "tencent/Hunyuan3D-2",
-    "device": "cuda:1",
+    "device": "cuda",
     "mc_algo": "dmc",
     "cache_path": "gradio_cache",
     "profile": 3,
